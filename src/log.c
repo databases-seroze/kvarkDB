@@ -17,5 +17,3 @@ log_t* log_create(const char* path, bool truncate) {
     log->debug_enabled = KVDB_DEBUB_LOG;
     return log;
 }
-
-log_t*

@@ -8,3 +8,5 @@ I've used C during my first sem in college but left it after that.
 - to compile with gcc you have to link all the relevant code files
 - #defines are preprocessor declaratives, i.e compiler replaces every line with what you have defined it during the compilation phase
 - use make file to build your code
+- if you haven't implemented a func in .c file even then the code compiles (interesting)
+-
