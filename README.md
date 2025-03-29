@@ -9,10 +9,13 @@ Goals:
 [] Write a minimal key-value db
 [] Support REPL
 
-
 Features:
 
 [] WAL
 [] LSM Based with levelled compaction
 [] Transaction support
 []
+
+Dev notes:
+- I'm first starting with log structs as it's easy to begin with
+-
