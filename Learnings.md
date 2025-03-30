@@ -9,4 +9,10 @@ I've used C during my first sem in college but left it after that.
 - #defines are preprocessor declaratives, i.e compiler replaces every line with what you have defined it during the compilation phase
 - use make file to build your code
 - if you haven't implemented a func in .c file even then the code compiles (interesting)
--
+- In this project Alex paduro uses this style of returning int for each operation Eg: like in log_create etc.. the idea is to have C error handling patterns if it returns 0 it's successful otherwise there's an issue
+- Pointers recap
+  - & gets the address of a variable
+  - Single pointers (*) access data
+  - Double pointers (**) change where pointers point
+  - For allocation functions, you must use double pointers to modify the caller's pointer
+- If a function takes zero arguments then you need to put void in it, this is a modern restriction because empty arguments can also mean any number of arguments in old C (K&R style)

@@ -2,8 +2,9 @@
 #include "../src/log.h"
 #include <assert.h>
 
-void test_log_init(){
-    log_t* log = log_create("database.log", true);
+void test_log_init(void){
+    log_t* log = NULL;
+    log_create(&log, "database.log", true);
     assert(log!=NULL);
     printf("test log init worked\n");
 }

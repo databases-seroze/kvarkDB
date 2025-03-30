@@ -11,9 +11,9 @@ typedef enum {
     LOG_DEBUG,
 } log_level_t;
 
-log_t* log_create(const char* path, bool truncate) {
-    log_t *log = malloc(sizeof(log_t));
-    log->file = fopen(path, truncate ? "w": "a"); //write or append mode
-    log->debug_enabled = KVDB_DEBUB_LOG;
-    return log;
+int log_create(log_t** log,  const char* path, bool truncate) {
+    *log = malloc(sizeof(log_t));
+    (*log)->file = fopen(path, truncate ? "w": "a"); //write or append mode
+    (*log)->debug_enabled = KVDB_DEBUB_LOG;
+    return 0;
 }

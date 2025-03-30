@@ -9,6 +9,6 @@ typedef struct  {
     bool debug_enabled;
 } log_t;
 
-log_t* log_create(const char * path, bool truncate); //Create/configure logger
-void log_write(log_t *log, int level, const char* format, ...); // thread-safe printf
-void log_free(log_t *log); //clean up
+int log_create(log_t** log, const char* path, bool truncate); //Create/configure logger
+void log_write(log_t** log, int level, const char* format, ...); // thread-safe printf
+void log_free(log_t** log); //clean up

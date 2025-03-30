@@ -3,7 +3,7 @@ project(kvarkDB LANGUAGES C)
 
 # ===== Compiler Options =====
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "-Wall -Wextra -Werror")
+set(CMAKE_C_FLAGS "-Wall -Wextra -Werror -pedantic")
 
 # ===== Main Library =====
 add_library(kvarkdb STATIC
