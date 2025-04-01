@@ -3,19 +3,18 @@
 This is mainly inspired from [tidesdb](https://github.com/tidesdb/tidesdb)
 But i'll try to add some experimental ideas.
 
-Goals:
+Design Goals:
+- Only targeted for unix like systems (eg: Mac, Ubuntu)
 
-[] Use LSM based storage engine
+Milestones:
+
+[] Use LSM based storage engine (memtable(skiplist) + sstable(bloomfilter+disk ds))
 [] Write a minimal key-value db
 [] Support REPL
 
 Features:
 
-[] WAL
 [] LSM Based with levelled compaction
 [] Transaction support
-[]
-
-Dev notes:
-- I'm first starting with log structs as it's easy to begin with
--
+[] WAL
+[] Compression support
