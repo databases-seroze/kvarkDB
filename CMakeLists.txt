@@ -7,15 +7,20 @@ set(CMAKE_C_FLAGS "-Wall -Wextra -Werror -pedantic")
 
 # ===== Main Library =====
 add_library(kvarkdb STATIC
-    src/log.c
+    src/wal.c
 )
 
 # ===== Logging Test =====
-add_executable(log_tests
-    test/log__tests.c
+add_executable(wal_tests
+    test/wal__tests.c
 )
-target_link_libraries(log_tests PRIVATE kvarkdb)
+target_link_libraries(wal_tests PRIVATE kvarkdb)
+
+# ===== Testing Support =====
+enable_testing()
+
+add_test(NAME WalTests COMMAND wal_tests)
 
 # ===== Installation (Optional) =====
 install(TARGETS kvarkdb DESTINATION lib)
-install(FILES src/log.h DESTINATION include)
+install(FILES src/wal.h DESTINATION include)

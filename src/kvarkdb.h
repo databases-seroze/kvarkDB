@@ -1,7 +1,25 @@
-#pragma once
+#ifndef KVARKDB
+#define KVARKDB
 
 #include<stdbool.h>
 #include<stddef.h>
+
+// kvarkdb/
+// ├── MANIFEST
+// ├── kvarkdb.conf
+// ├── wal/
+// │   ├── 000001.log
+// │   └── 000002.log
+// ├── sstables/
+// │   ├── level0/
+// │   │   ├── 000001.sst
+// │   │   └── 000002.sst
+// │   └── level1/
+// │       └── 000005.sst
+// └── meta/
+//     └── column_families/
+//         ├── default.cf
+//         └── users.cf
 
 typedef struct kvarkdb_config{
     size_t memtable_max_size; // threshold to flush to sstable
@@ -33,3 +51,5 @@ int kvarddb_drop_column_family(kvarkdb_t* db, const char* name);
 int kvarkdb_put(kvarkdb_t* db, const char* column_family, const char* key, const char* value);
 char* kvarkdb_get(kvarkdb_t* db, const char* column_family, const char* key);
 int kvarkdb_delete(kvarkdb_t* db, const char* column_family, const char* key);
+
+#endif

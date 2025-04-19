@@ -68,10 +68,7 @@ int kvarkdb_open(kvarkdb_t** db, const kvarkdb_config_t* options) {
 
     // Create directory structure
     if (create_db_directories(path) != 0) {
-        free(db->config.db_path);
-        free(db);
-        return NULL;
-    }
+        free(db->config.db_path); free(db); return NULL; }
 
     // Load column families metadata
     // at present you can only creat paths of max size 1023 (last char is \0)
