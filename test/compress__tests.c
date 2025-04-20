@@ -121,6 +121,12 @@ static void test_decompress_invalid_type(void** state) {
     assert(result==NULL);
 }
 
+/**
+Decompression functions expect specific format headers,
+metadata, and structure — which this array lacks.
+
+hence all 0's is treated as a corrupted data
+*/
 static void test_decompress_corrupted_data(void** state) {
     printf("[TEST] Starting test_decompress_corrupted_data...\n");
     (void)state;
