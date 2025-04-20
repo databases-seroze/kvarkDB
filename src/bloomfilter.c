@@ -6,7 +6,7 @@
 #include "fnv_hash.h"  // Assuming you're using FNV hash
 
 // Create a new Bloom filter
-BloomFilter *bloom_create(size_t size, int num_hashes) {
+BloomFilter* bloom_create(size_t size, int num_hashes) {
     BloomFilter *bf = (BloomFilter *)malloc(sizeof(BloomFilter));
     if (!bf) return NULL;
 

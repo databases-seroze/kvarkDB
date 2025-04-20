@@ -1,5 +1,5 @@
-#ifndef __KVARKDB_FNVHASH__
-#define __KVARKDB_FNVHASH__
+#ifndef __KVARKDB_FNVHASH_H__
+#define __KVARKDB_FNVHASH_H__
 
 #include <stdio.h>
 #include <stdint.h>

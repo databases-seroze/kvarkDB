@@ -1,5 +1,5 @@
-#ifndef __KVARKDB_ERR__
-#define __KVARKDB_ERR__
+#ifndef __KVARKDB_ERR_H__
+#define __KVARKDB_ERR_H__
 
 typedef struct {
     int code; //error code

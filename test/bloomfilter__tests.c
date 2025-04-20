@@ -8,7 +8,7 @@ void test_bloom_create(void) {
     printf("Testing bloom_create... ");
     size_t size = 100;
     int num_hashes = 3;
-    BloomFilter *bf = bloom_create(size, num_hashes);
+    BloomFilter* bf = bloom_create(size, num_hashes);
 
     assert(bf != NULL);
     assert(bf->bit_array != NULL);

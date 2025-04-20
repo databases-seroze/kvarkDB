@@ -1,5 +1,5 @@
-#ifndef __KVARKDB_COMPRESS__
-#define __KVARKDB_COMPRESS__
+#ifndef __KVARKDB_COMPRESS_H__
+#define __KVARKDB_COMPRESS_H__
 
 #include <lz4.h>
 #include <snappy-c.h>

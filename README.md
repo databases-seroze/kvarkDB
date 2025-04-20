@@ -1,10 +1,10 @@
 # kvarkDB
 
-This is mainly inspired from [tidesdb](https://github.com/tidesdb/tidesdb)
+This is mainly inspired from [tidesdb](https://github.com/tidesdb/tidesdb) from the author Alex Padula
 But i'll try to add some experimental ideas.
 
 Platform support:
-- Only targeted for unix like systems (eg: Mac, Ubuntu)
+- Only targeted for unix like systems (eg: Mac, Ubuntu). If you want windows support please ask by raising a PR.
 
 How to run:
 
@@ -12,6 +12,8 @@ How to run:
 // then run the cmake to actuall build the project
 % rm -rf build && cmake -S . -B build
 % cmake --build build
+Note: cmake --build build automatically takes care of rebuilding only the relevant files that have changed
+      post last run
 
 How to run tests:
 % ./build/*_tests
@@ -21,22 +23,19 @@ Milestones:
 - [X] Implement WAL
 - [X] Implement Compression
 - [X] Implement BloomFilter
-- [] Implement memtable + sstable
+- [] Implement SkipList + cursor
+- [] Implement memtable & sstable
 - [] Implement Column families
 - [] Write a minimal key-value db
 - [] Support REPL
+- [] Add Go, python bindings
 
 Features:
 
-- [] LSM Based with levelled compaction
+- [] LSM Based with levelled compaction (for now only has single level)
 - [] Transaction support
-- [] WAL
-- [] Compression support
-
-How to run:
-
-- run `cmake .` in the directory where CMakeFiles exist
--
+- [X] WAL
+- [X] Compression support
 
 Dependencies
-- install cmoka (via brew install cmoka if you are on mac)
+- install zstd4, snappy, lz4 libraries
