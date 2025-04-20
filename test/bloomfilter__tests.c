@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include "test_macros.h"
 
 void test_bloom_create(void) {
     printf("Testing bloom_create... ");
@@ -20,7 +21,7 @@ void test_bloom_create(void) {
     }
 
     bloom_destroy(bf);
-    printf("PASSED\n");
+    printf(GREEN "PASSED\n" RESET);
 }
 
 void test_bloom_add_check(void) {
@@ -47,7 +48,7 @@ void test_bloom_add_check(void) {
     }
 
     bloom_destroy(bf);
-    printf("PASSED\n");
+    printf(GREEN "PASSED\n" RESET);
 }
 
 void test_bloom_false_positives(void) {
@@ -68,16 +69,16 @@ void test_bloom_false_positives(void) {
             false_positives++;
         }
     }
-    printf("Observed %d/3 false positives (expected in Bloom filters)\n", false_positives);
+    printf(GREEN "Observed %d/3 false positives (expected in Bloom filters)\n" RESET, false_positives);
 
     bloom_destroy(bf);
-    printf("PASSED (but verify false positive rate)\n");
+    printf(GREEN " PASSED (but verify false positive rate) \n" RESET);
 }
 
 int main(void) {
     test_bloom_create();
     test_bloom_add_check();
     test_bloom_false_positives();
-    printf("All tests completed.\n");
+    printf(GREEN "All tests completed.\n" RESET);
     return 0;
 }
