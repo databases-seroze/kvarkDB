@@ -27,7 +27,9 @@ link_directories(
 # ===== Main Library =====
 add_library(kvarkdb STATIC
     src/wal.c
+    src/bloomfilter.c
     src/compress.c  # Make sure this is included if you're using compression
+    src/fnv_hash.c
 )
 
 target_link_libraries(kvarkdb PUBLIC
@@ -44,9 +46,13 @@ add_executable(wal_tests
 add_executable(compress_tests
     test/compress__tests.c
 )
+add_executable(bloomfilter_tests
+    test/bloomfilter__tests.c
+)
 
 target_link_libraries(wal_tests PRIVATE kvarkdb)
 target_link_libraries(compress_tests PRIVATE kvarkdb)
+target_link_libraries(bloomfilter_tests PRIVATE kvarkdb)
 
 # ===== Testing Support =====
 enable_testing()
