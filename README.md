@@ -19,8 +19,8 @@ How to run tests:
 Milestones:
 
 - [X] Implement WAL
-- [] Implement Compression
-- [] Implement BloomFilter
+- [X] Implement Compression
+- [X] Implement BloomFilter
 - [] Implement memtable + sstable
 - [] Implement Column families
 - [] Write a minimal key-value db
