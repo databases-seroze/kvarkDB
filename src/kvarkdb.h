@@ -1,5 +1,5 @@
-#ifndef KVARKDB
-#define KVARKDB
+#ifndef __KVARKDB__
+#define __KVARKDB__
 
 #include<stdbool.h>
 #include<stddef.h>

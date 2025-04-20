@@ -20,4 +20,5 @@ Since it's my first time writing an actual real world project in C, i'm noting d
 - if mkdir() fails then os sets errno variable it's a thread local variable, there are various encodings like dir already exists, no_space, permission_issue,
 we need to reset errno since stale entries are not reset by os
 - snprintf() does string concatenation it also checks for buffer overflows
+- In Cmake if you make changes in something you don't need to rebuild the whole project you can just run cmake --build build
 -

@@ -1,5 +1,5 @@
-#ifndef KVARKDB_WAL_H
-#define KVARKDB_WAL_H
+#ifndef __KVARKDB_WAL_H__
+#define __KVARKDB_WAL_H__
 
 #include <stdbool.h>
 #include <stdint.h>

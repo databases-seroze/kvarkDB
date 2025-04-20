@@ -19,8 +19,10 @@ How to run tests:
 Milestones:
 
 - [X] Implement WAL
+- [] Implement Compression
+- [] Implement BloomFilter
+- [] Implement memtable + sstable
 - [] Implement Column families
-- [] Use LSM based storage engine (memtable(skiplist) + sstable(bloomfilter+disk ds))
 - [] Write a minimal key-value db
 - [] Support REPL
 

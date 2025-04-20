@@ -6,10 +6,13 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <inttypes.h>
 
 #define WAL_FILE_PREFIX "wal_"
 #define WAL_FILE_EXT ".log"
-#define WAL_FILE_PATTERN WAL_FILE_PREFIX "%06llu" WAL_FILE_EXT
+// #define WAL_FILE_PATTERN WAL_FILE_PREFIX "%06llu" WAL_FILE_EXT
+#define WAL_FILE_PATTERN WAL_FILE_PREFIX "%06" PRIu64 WAL_FILE_EXT
+
 
 static bool ensure_dir_exists(const char* path) {
     struct stat st = {0};
