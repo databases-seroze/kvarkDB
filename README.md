@@ -44,7 +44,8 @@ cmake --build build
 - [x] Implement WAL
 - [x] Implement Compression
 - [x] Implement BloomFilter
-- [ ] Implement SkipList + cursor
+- [x] Implement SkipList
+- [ ] Implement cursor
 - [ ] Implement memtable & sstable
 - [ ] Implement Column families
 - [ ] Write a minimal key-value db
