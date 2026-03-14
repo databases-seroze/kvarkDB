@@ -21,6 +21,7 @@ add_library(kvarkdb STATIC
     src/compress.c
     src/fnv_hash.c
     src/skiplist.c
+    src/memtable.c
 )
 
 target_include_directories(kvarkdb PUBLIC
@@ -41,11 +42,13 @@ add_executable(wal_tests test/wal__tests.c)
 add_executable(compress_tests test/compress__tests.c)
 add_executable(bloomfilter_tests test/bloomfilter__tests.c)
 add_executable(skiplist_tests test/skiplist__tests.c)
+add_executable(memtable_tests test/memtable__tests.c)
 
 target_link_libraries(wal_tests PRIVATE kvarkdb)
 target_link_libraries(compress_tests PRIVATE kvarkdb)
 target_link_libraries(bloomfilter_tests PRIVATE kvarkdb)
 target_link_libraries(skiplist_tests PRIVATE kvarkdb)
+target_link_libraries(memtable_tests PRIVATE kvarkdb)
 
 # ===== Testing Support =====
 enable_testing()
@@ -53,6 +56,7 @@ add_test(NAME WalTests COMMAND wal_tests)
 add_test(NAME CompressTests COMMAND compress_tests)
 add_test(NAME BloomfilterTests COMMAND bloomfilter_tests)
 add_test(NAME SkiplistTests COMMAND skiplist_tests)
+add_test(NAME MemtableTests COMMAND memtable_tests)
 
 # ===== Installation =====
 install(TARGETS kvarkdb DESTINATION lib)

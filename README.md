@@ -46,7 +46,8 @@ cmake --build build
 - [x] Implement BloomFilter
 - [x] Implement SkipList
 - [x] Implement cursor
-- [ ] Implement memtable & sstable
+- [x] Implement memtable
+- [ ] Implement sstable
 - [ ] Implement Column families
 - [ ] Write a minimal key-value db
 - [ ] Support REPL

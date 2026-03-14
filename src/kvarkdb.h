@@ -1,8 +1,9 @@
 #ifndef __KVARKDB_H__
 #define __KVARKDB_H__
 
-#include<stdbool.h>
-#include<stddef.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include "memtable.h"
 
 // kvarkdb/
 // ├── MANIFEST
@@ -30,7 +31,7 @@ typedef struct kvarkdb_config{
 
 typedef struct kvarkdb_column_family{
     char* name;
-    struct skiplist_t *memtable;
+    memtable_t* memtable;
 } kvarkdb_column_family_t;
 
 typedef struct kvarkdb{
