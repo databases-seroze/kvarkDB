@@ -47,7 +47,7 @@ cmake --build build
 - [x] Implement SkipList
 - [x] Implement cursor
 - [x] Implement memtable
-- [ ] Implement sstable
+- [x] Implement sstable
 - [ ] Implement Column families
 - [ ] Write a minimal key-value db
 - [ ] Support REPL
