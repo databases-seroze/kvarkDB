@@ -41,7 +41,7 @@ int skiplist_new(skiplist_t** skiplist, size_t max_levels, float probability) {
         return -1;
     }
 
-    (*skiplist)->head->max_levels = (skiplist_level_t*)calloc(max_levels, sizeof(skiplist_level_t));
+    (*skiplist)->head->levels = (skiplist_level_t*)calloc(max_levels, sizeof(skiplist_level_t));
     if ((*skiplist)->head->levels == NULL) {
         free((*skiplist)->head);
         free(*skiplist);
