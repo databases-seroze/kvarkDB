@@ -3,39 +3,57 @@
 This is mainly inspired from [tidesdb](https://github.com/tidesdb/tidesdb) from the author Alex Padula
 But i'll try to add some experimental ideas.
 
-Platform support:
-- Only targeted for unix like systems (eg: Mac, Ubuntu). If you want windows support please ask by raising a PR.
+## Platform support
+Only targeted for unix like systems (eg: Mac, Ubuntu). If you want windows support please ask by raising a PR.
 
-How to run:
+## Dependencies
 
-// delete existing build dir and create a new make file
-// then run the cmake to actuall build the project
-% rm -rf build && cmake -S . -B build
-% cmake --build build
-Note: cmake --build build automatically takes care of rebuilding only the relevant files that have changed
-      post last run
+**macOS**
+```bash
+brew install lz4 zstd snappy
+```
 
-How to run tests:
-% ./build/*_tests
+**Ubuntu / Debian**
+```bash
+sudo apt install liblz4-dev libzstd-dev libsnappy-dev
+```
 
-Milestones:
+**Fedora / RHEL**
+```bash
+sudo dnf install lz4-devel libzstd-devel snappy-devel
+```
 
-- [X] Implement WAL
-- [X] Implement Compression
-- [X] Implement BloomFilter
-- [] Implement SkipList + cursor
-- [] Implement memtable & sstable
-- [] Implement Column families
-- [] Write a minimal key-value db
-- [] Support REPL
-- [] Add Go, python bindings
+## How to run
 
-Features:
+```bash
+# delete existing build dir, configure, and build
+rm -rf build && cmake -S . -B build
+cmake --build build
+```
 
-- [] LSM Based with levelled compaction (for now only has single level)
-- [] Transaction support
-- [X] WAL
-- [X] Compression support
+> `cmake --build build` automatically rebuilds only files that changed since the last run.
 
-Dependencies
-- install zstd4, snappy, lz4 libraries
+## How to run tests
+
+```bash
+./build/*_tests
+```
+
+## Milestones
+
+- [x] Implement WAL
+- [x] Implement Compression
+- [x] Implement BloomFilter
+- [ ] Implement SkipList + cursor
+- [ ] Implement memtable & sstable
+- [ ] Implement Column families
+- [ ] Write a minimal key-value db
+- [ ] Support REPL
+- [ ] Add Go, Python bindings
+
+## Features
+
+- [ ] LSM based with levelled compaction (for now only has single level)
+- [ ] Transaction support
+- [x] WAL
+- [x] Compression support (LZ4, ZSTD, Snappy)
