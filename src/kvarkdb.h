@@ -40,7 +40,8 @@ typedef struct kvarkdb{
 } kvarkdb_t;
 
 // database operations
-int kvarkdb_open(kvarkdb_t** db, const kvarkdb_config_t* config);
+// caller allocates db, fills db->config, then calls kvarkdb_open
+int kvarkdb_open(kvarkdb_t* db);
 void kvarkdb_close(kvarkdb_t* kvarkdb);
 
 // column family operations

@@ -48,36 +48,26 @@ static int create_db_directories(const char* path) {
     return 0;
 }
 
-int kvarkdb_open(kvarkdb_t** db, const kvarkdb_config_t* options) {
-    *db = malloc(sizeof(kvarkdb_t));
+int kvarkdb_open(kvarkdb_t* db) {
     if (!db) return -1;
 
-    // copy options
-    (*db)->config.memtable_max_size = options->memtable_max_size;
-    (*db)->config.sstable_target_size = options->sstable_target_size;
-    (*db)->config.db_path = options->db_path;
+    if (!db->config.db_path) return -1;
 
-    if (!(*db)->config.db_path) {
-        free(db);
+    // Initialize empty column families list
+    db->column_families = NULL;
+    db->column_family_count = 0;
+
+    // Create directory structure
+    if (create_db_directories(db->config.db_path) != 0) {
         return -1;
     }
 
-    // Initialize empty column families list
-    (*db)->column_families = NULL;
-    (*db)->cf_count = 0;
-
-    // Create directory structure
-    if (create_db_directories(path) != 0) {
-        free(db->config.db_path); free(db); return NULL; }
-
     // Load column families metadata
-    // at present you can only creat paths of max size 1023 (last char is \0)
+    // at present you can only create paths of max size 1023 (last char is \0)
     char cf_path[PATH_MAX];
-    if (snprintf(cf_path, sizeof(cf_path), "%s/%s/%s", path, DATA_DIR, COLUMN_FAMILIES_FILE) >= sizeof(cf_path)) {
+    if (snprintf(cf_path, sizeof(cf_path), "%s/%s/%s", db->config.db_path, DATA_DIR, COLUMN_FAMILIES_FILE) >= (int)sizeof(cf_path)) {
         fprintf(stderr, "Column families path too long\n");
-        free(db->config.db_path);
-        free(db);
-        return NULL;
+        return -1;
     }
 
     FILE* cf_file = fopen(cf_path, "r");
@@ -88,18 +78,18 @@ int kvarkdb_open(kvarkdb_t** db, const kvarkdb_config_t* options) {
             line[strcspn(line, "\n")] = '\0';
             if (line[0] == '\0') continue;
 
-            if (kvarkdb_create_column_family(db, line) != 0) {
+            if (kvarddb_create_column_family(db, line) != 0) {
                 fclose(cf_file);
                 kvarkdb_close(db);
-                return NULL;
+                return -1;
             }
         }
         fclose(cf_file);
     } else if (errno != ENOENT) {
         perror("Failed to open column families file");
         kvarkdb_close(db);
-        return NULL;
+        return -1;
     }
 
-    return db;
+    return 0;
 }
