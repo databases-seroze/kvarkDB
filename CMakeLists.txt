@@ -5,50 +5,40 @@ project(kvarkDB LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_FLAGS "-Wall -Wextra -Werror -pedantic")
 
-# ===== Dependency Paths =====
-# Set all paths first before using them
-set(LZ4_ROOT /opt/homebrew/opt/lz4)
-set(ZSTD_ROOT /opt/homebrew/opt/zstd)
-set(SNAPPY_ROOT /opt/homebrew/opt/snappy)
+# ===== Required Dependencies =====
+find_package(PkgConfig REQUIRED)
 
-# ===== Include/Link Directories =====
-include_directories(
-    ${LZ4_ROOT}/include
-    ${ZSTD_ROOT}/include
-    ${SNAPPY_ROOT}/include
-)
+pkg_check_modules(LZ4 REQUIRED liblz4)
+pkg_check_modules(ZSTD REQUIRED libzstd)
+pkg_check_modules(SNAPPY REQUIRED snappy)
 
-link_directories(
-    ${LZ4_ROOT}/lib
-    ${ZSTD_ROOT}/lib
-    ${SNAPPY_ROOT}/lib
-)
+find_package(Threads REQUIRED)
 
 # ===== Main Library =====
 add_library(kvarkdb STATIC
     src/wal.c
     src/bloomfilter.c
-    src/compress.c  # Make sure this is included if you're using compression
+    src/compress.c
     src/fnv_hash.c
 )
 
-target_link_libraries(kvarkdb PUBLIC
-    lz4
-    zstd
-    snappy
-    pthread
+target_include_directories(kvarkdb PUBLIC
+    ${LZ4_INCLUDE_DIRS}
+    ${ZSTD_INCLUDE_DIRS}
+    ${SNAPPY_INCLUDE_DIRS}
 )
 
-# ===== Logging Test =====
-add_executable(wal_tests
-    test/wal__tests.c
+target_link_libraries(kvarkdb PUBLIC
+    ${LZ4_LIBRARIES}
+    ${ZSTD_LIBRARIES}
+    ${SNAPPY_LIBRARIES}
+    Threads::Threads
 )
-add_executable(compress_tests
-    test/compress__tests.c
-)
-add_executable(bloomfilter_tests
-    test/bloomfilter__tests.c
-)
+
+# ===== Tests =====
+add_executable(wal_tests test/wal__tests.c)
+add_executable(compress_tests test/compress__tests.c)
+add_executable(bloomfilter_tests test/bloomfilter__tests.c)
 
 target_link_libraries(wal_tests PRIVATE kvarkdb)
 target_link_libraries(compress_tests PRIVATE kvarkdb)
@@ -57,7 +47,9 @@ target_link_libraries(bloomfilter_tests PRIVATE kvarkdb)
 # ===== Testing Support =====
 enable_testing()
 add_test(NAME WalTests COMMAND wal_tests)
+add_test(NAME CompressTests COMMAND compress_tests)
+add_test(NAME BloomfilterTests COMMAND bloomfilter_tests)
 
-# ===== Installation (Optional) =====
+# ===== Installation =====
 install(TARGETS kvarkdb DESTINATION lib)
 install(FILES src/wal.h DESTINATION include)
