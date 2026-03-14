@@ -273,3 +273,49 @@ int skiplist_delete(skiplist_t** skiplist, const uint8_t* key, size_t key_size,
 
     return 0;
 }
+
+int skiplist_cursor_init(skiplist_t* skiplist, skiplist_cursor_t** cursor) {
+    if (skiplist == NULL || skiplist->head->levels[0].next == NULL) return -1;
+
+    *cursor = (skiplist_cursor_t*)malloc(sizeof(skiplist_cursor_t));
+    if (*cursor == NULL) return -1;
+
+    (*cursor)->skiplist = skiplist;
+    (*cursor)->current = skiplist->head->levels[0].next;
+    return 0;
+}
+
+int skiplist_cursor_next(skiplist_cursor_t* cursor) {
+    if (cursor == NULL || cursor->current == NULL) return -1;
+
+    skiplist_node_t* next = cursor->current->levels[0].next;
+    if (next == NULL) return -1;
+
+    cursor->current = next;
+    return 0;
+}
+
+int skiplist_cursor_prev(skiplist_cursor_t* cursor) {
+    if (cursor == NULL || cursor->current == NULL) return -1;
+
+    skiplist_node_t* prev = cursor->current->levels[0].prev;
+    if (prev == NULL || prev == cursor->skiplist->head) return -1;
+
+    cursor->current = prev;
+    return 0;
+}
+
+int skiplist_cursor_get(skiplist_cursor_t* cursor, uint8_t** key, size_t* key_size,
+                        uint8_t** value, size_t* value_size) {
+    if (cursor == NULL || cursor->current == NULL) return -1;
+
+    *key        = cursor->current->key;
+    *key_size   = cursor->current->key_size;
+    *value      = cursor->current->value;
+    *value_size = cursor->current->value_size;
+    return 0;
+}
+
+void skiplist_cursor_destroy(skiplist_cursor_t* cursor) {
+    free(cursor);
+}

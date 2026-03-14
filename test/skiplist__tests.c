@@ -207,6 +207,79 @@ void test_skiplist_multiple_keys(void) {
     printf(GREEN "PASSED\n" RESET);
 }
 
+void test_cursor_forward(void) {
+    printf("Testing cursor forward iteration... ");
+
+    skiplist_t *sl = make_skiplist();
+    /* insert in non-sorted order; skiplist keeps them sorted */
+    put(&sl, "banana", "2");
+    put(&sl, "apple",  "1");
+    put(&sl, "cherry", "3");
+
+    skiplist_cursor_t *cur = NULL;
+    assert(skiplist_cursor_init(sl, &cur) == 0);
+
+    const char *expected_keys[] = {"apple", "banana", "cherry"};
+    const char *expected_vals[] = {"1", "2", "3"};
+    int i = 0;
+    do {
+        uint8_t *k, *v; size_t ks, vs;
+        assert(skiplist_cursor_get(cur, &k, &ks, &v, &vs) == 0);
+        assert(ks == strlen(expected_keys[i]));
+        assert(memcmp(k, expected_keys[i], ks) == 0);
+        assert(vs == strlen(expected_vals[i]));
+        assert(memcmp(v, expected_vals[i], vs) == 0);
+        i++;
+    } while (skiplist_cursor_next(cur) == 0);
+
+    assert(i == 3);
+    skiplist_cursor_destroy(cur);
+    skiplist_clear(&sl);
+    printf(GREEN "PASSED\n" RESET);
+}
+
+void test_cursor_backward(void) {
+    printf("Testing cursor backward iteration... ");
+
+    skiplist_t *sl = make_skiplist();
+    put(&sl, "apple",  "1");
+    put(&sl, "banana", "2");
+    put(&sl, "cherry", "3");
+
+    skiplist_cursor_t *cur = NULL;
+    assert(skiplist_cursor_init(sl, &cur) == 0);
+
+    /* advance to last node */
+    while (skiplist_cursor_next(cur) == 0);
+
+    const char *expected_keys[] = {"cherry", "banana", "apple"};
+    int i = 0;
+    do {
+        uint8_t *k, *v; size_t ks, vs;
+        assert(skiplist_cursor_get(cur, &k, &ks, &v, &vs) == 0);
+        assert(ks == strlen(expected_keys[i]));
+        assert(memcmp(k, expected_keys[i], ks) == 0);
+        i++;
+    } while (skiplist_cursor_prev(cur) == 0);
+
+    assert(i == 3);
+    skiplist_cursor_destroy(cur);
+    skiplist_clear(&sl);
+    printf(GREEN "PASSED\n" RESET);
+}
+
+void test_cursor_empty_list(void) {
+    printf("Testing cursor on empty list... ");
+
+    skiplist_t *sl = make_skiplist();
+    skiplist_cursor_t *cur = NULL;
+    assert(skiplist_cursor_init(sl, &cur) == -1);
+    assert(cur == NULL);
+
+    skiplist_clear(&sl);
+    printf(GREEN "PASSED\n" RESET);
+}
+
 void test_skiplist_clear(void) {
     printf("Testing skiplist_clear... ");
 
@@ -233,6 +306,9 @@ int main(void) {
     test_skiplist_ttl_expired();
     test_skiplist_ttl_valid();
     test_skiplist_multiple_keys();
+    test_cursor_forward();
+    test_cursor_backward();
+    test_cursor_empty_list();
     test_skiplist_clear();
 
     printf(GREEN "All skiplist tests passed.\n" RESET);
