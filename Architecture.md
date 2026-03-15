@@ -21,3 +21,71 @@ Startup flow:
   2. write the sstable to the appropriate column family directory
   3. update the manifest file to include the directories
   4. clear the memtable and create a new empty one
+
+---
+
+## Compaction Design History
+
+### v1 — Full/Flat Compaction (current)
+
+**Implemented:** initial compaction milestone.
+
+The first version uses the simplest possible strategy: there are no levels.
+Each column family holds a flat array of SSTables, ordered oldest to newest:
+
+```
+cf->sst_paths = [ sst1, sst2, sst3, sst4 ]
+                  oldest             newest
+```
+
+**Trigger:** after every memtable flush, if `sst_count >= compaction_threshold`
+(configurable, default 4), compact immediately on the same thread.
+
+**Algorithm (N-way sort-merge):**
+1. Read every entry from every SSTable into one flat in-memory array
+2. Sort by key ascending; for duplicate keys, newest SSTable wins
+3. Keep only the first (newest) occurrence of each key
+4. Drop tombstones — safe because ALL SSTables are being merged, so no
+   older data exists that a tombstone still needs to suppress
+5. Write survivors to a new SSTable file
+6. Delete the old SSTable files and rewrite the manifest
+
+**Result:** N SSTables collapse to 1.
+
+**Why start here:**
+- Simple to reason about and test
+- Correct — tombstone handling, duplicate resolution, and manifest updates
+  are all straightforward when scope is always "everything"
+- Good foundation to layer leveled compaction on top of
+
+**Known limitations:**
+- **Write amplification** — every compaction rewrites the entire dataset for
+  that column family, even if only a few keys changed
+- **No partial compaction** — you can't compact just a subset of SSTables;
+  it's all-or-nothing
+- **Synchronous** — compaction blocks writes on the same thread; no
+  background compaction thread yet
+- **Single output file** — after compaction there is always exactly 0 or 1
+  SSTable per CF; a very large dataset would produce one very large file
+
+---
+
+### v2 — Leveled Compaction (planned)
+
+The standard approach used by LevelDB and RocksDB. Each column family has
+multiple levels (L0, L1, L2, ...) where each level is ~10x larger than the
+previous. Compaction picks one file from level N and merges it with the
+overlapping key-range files in level N+1, producing a new sorted run at N+1.
+
+Key improvements over v1:
+- **Bounded read amplification** — at most one file per level needs to be
+  checked for a key lookup (L0 is the exception; files there can overlap)
+- **Controlled write amplification** — only a small subset of keys are
+  rewritten per compaction, not the whole dataset
+- **Incremental** — compaction can run continuously in a background thread
+  without stalling writes for long
+- **Tombstone handling** — tombstones are only dropped when compacting into
+  the bottom level (where no older data can exist)
+
+The manifest format and `cf->sst_paths` array would need to evolve into a
+per-level structure to support this.
