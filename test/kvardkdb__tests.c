@@ -252,6 +252,64 @@ void test_persist_and_reopen(void) {
     printf(GREEN "PASSED\n" RESET);
 }
 
+/* delete a key that was flushed to SSTable — tombstone must suppress it */
+void test_delete_after_flush(void) {
+    printf("Testing kvarkdb_delete suppresses key flushed to SSTable... ");
+    cleanup();
+    kvarkdb_t db = {0};
+    db.config.memtable_max_size   = 16;  /* tiny to force flush */
+    db.config.sstable_target_size = 128;
+    db.config.db_path             = TEST_DB_PATH;
+    assert(kvarkdb_open(&db) == 0);
+    assert(kvarddb_create_column_family(&db, "default") == 0);
+
+    /* fill until at least one SSTable is flushed */
+    for (int i = 0; i < 10; i++) {
+        char key[8], val[8];
+        snprintf(key, sizeof(key), "k%d", i);
+        snprintf(val, sizeof(val), "v%d", i);
+        assert(kvarkdb_put(&db, "default", key, val) == 0);
+    }
+    assert(db.column_families[0].sst_count > 0);
+
+    /* delete a key that is definitely in an SSTable */
+    assert(kvarkdb_delete(&db, "default", "k0") == 0);
+
+    /* must not be visible anymore */
+    assert(kvarkdb_get(&db, "default", "k0") == NULL);
+
+    /* other keys unaffected */
+    char* val = kvarkdb_get(&db, "default", "k1");
+    assert(val != NULL);
+    free(val);
+
+    kvarkdb_close(&db);
+    printf(GREEN "PASSED\n" RESET);
+}
+
+/* put → delete → put must restore the key */
+void test_put_after_delete(void) {
+    printf("Testing kvarkdb_put after delete restores key... ");
+    cleanup();
+    kvarkdb_t db = {0};
+    make_db(&db);
+    assert(kvarddb_create_column_family(&db, "default") == 0);
+
+    assert(kvarkdb_put(&db,    "default", "key", "first") == 0);
+    assert(kvarkdb_delete(&db, "default", "key")          == 0);
+    assert(kvarkdb_get(&db,    "default", "key")          == NULL);
+
+    assert(kvarkdb_put(&db, "default", "key", "second") == 0);
+
+    char* val = kvarkdb_get(&db, "default", "key");
+    assert(val != NULL);
+    assert(strcmp(val, "second") == 0);
+    free(val);
+
+    kvarkdb_close(&db);
+    printf(GREEN "PASSED\n" RESET);
+}
+
 int main(void) {
     printf(CYAN "Running kvarkdb tests...\n" RESET);
 
@@ -267,6 +325,8 @@ int main(void) {
     test_wrong_column_family();
     test_flush_and_read_from_sstable();
     test_persist_and_reopen();
+    test_delete_after_flush();
+    test_put_after_delete();
 
     printf(GREEN "All kvarkdb tests passed.\n" RESET);
     return 0;
