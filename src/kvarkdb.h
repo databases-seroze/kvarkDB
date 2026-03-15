@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "memtable.h"
+#include "wal.h"
 
 // kvarkdb/
 // ├── data/
@@ -36,6 +37,7 @@ typedef struct kvarkdb {
     kvarkdb_config_t          config;
     kvarkdb_column_family_t*  column_families;
     size_t                    column_family_count;
+    WAL*                      wal;
 } kvarkdb_t;
 
 // database operations

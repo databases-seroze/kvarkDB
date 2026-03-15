@@ -12,6 +12,9 @@
 /* compact a column family when its SSTable count reaches this threshold */
 #define KVARKDB_DEFAULT_COMPACTION_THRESHOLD 4
 
+/* WAL rotates to a new file once this size is exceeded */
+#define KVARKDB_WAL_MAX_SIZE (64 * 1024 * 1024)  /* 64 MiB */
+
 
 #define DATA_DIR             "data"
 #define META_DIR             "meta"
@@ -206,6 +209,24 @@ static void free_cf_contents(kvarkdb_column_family_t* cf) {
 }
 
 /* ------------------------------------------------------------------ */
+/* WAL replay callback                                                  */
+
+static int wal_replay_cb(const wal_record_t* rec, void* ctx) {
+    kvarkdb_t* db = (kvarkdb_t*)ctx;
+    kvarkdb_column_family_t* cf = find_cf(db, rec->cf_name);
+    if (!cf) return 0;  /* unknown CF — skip */
+
+    if (rec->op_type == WAL_OP_PUT) {
+        memtable_put(cf->memtable,
+                     rec->key,               rec->key_size,
+                     (uint8_t*)rec->value,   rec->value_size, 0);
+    } else if (rec->op_type == WAL_OP_DELETE) {
+        memtable_delete(cf->memtable, rec->key, rec->key_size);
+    }
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
 /* public API                                                           */
 
 int kvarkdb_open(kvarkdb_t* db) {
@@ -213,6 +234,7 @@ int kvarkdb_open(kvarkdb_t* db) {
 
     db->column_families       = NULL;
     db->column_family_count   = 0;
+    db->wal                   = NULL;
 
     if (create_db_directories(db->config.db_path) != 0) return -1;
 
@@ -272,6 +294,17 @@ int kvarkdb_open(kvarkdb_t* db) {
         return -1;
     }
 
+    /* replay any WAL records written before the last clean close */
+    wal_replay(db->config.db_path, wal_replay_cb, db);
+    /* clear WAL now that state is restored — start fresh */
+    wal_clear(db->config.db_path);
+
+    db->wal = wal_init(db->config.db_path, KVARKDB_WAL_MAX_SIZE);
+    if (!db->wal) {
+        kvarkdb_close(db);
+        return -1;
+    }
+
     return 0;
 }
 
@@ -288,6 +321,13 @@ void kvarkdb_close(kvarkdb_t* db) {
     free(db->column_families);
     db->column_families     = NULL;
     db->column_family_count = 0;
+
+    /* all memtables have been flushed to SSTables — WAL is no longer needed */
+    if (db->wal) {
+        wal_close(db->wal);
+        db->wal = NULL;
+        wal_clear(db->config.db_path);
+    }
 }
 
 int kvarddb_create_column_family(kvarkdb_t* db, const char* name) {
@@ -365,6 +405,14 @@ int kvarkdb_put(kvarkdb_t* db, const char* column_family, const char* key, const
     kvarkdb_column_family_t* cf = find_cf(db, column_family);
     if (!cf) return -1;
 
+    if (db->wal) {
+        size_t key_len = strlen(key), val_len = strlen(value);
+        if (!wal_write_record(db->wal, WAL_OP_PUT, column_family,
+                              (const uint8_t*)key,   (uint32_t)key_len,
+                              (const uint8_t*)value, (uint32_t)val_len))
+            return -1;
+    }
+
     if (memtable_put(cf->memtable,
                      (const uint8_t*)key,   strlen(key),
                      (uint8_t*)value,        strlen(value), 0) != 0) return -1;
@@ -425,6 +473,14 @@ int kvarkdb_delete(kvarkdb_t* db, const char* column_family, const char* key) {
 
     kvarkdb_column_family_t* cf = find_cf(db, column_family);
     if (!cf) return -1;
+
+    if (db->wal) {
+        size_t key_len = strlen(key);
+        if (!wal_write_record(db->wal, WAL_OP_DELETE, column_family,
+                              (const uint8_t*)key, (uint32_t)key_len,
+                              NULL, 0))
+            return -1;
+    }
 
     /* Write a flags-based tombstone (SKIPLIST_FLAG_DELETED) so that keys
      * flushed to SSTable are correctly suppressed on the read path.
