@@ -131,3 +131,6 @@ Deletes write a **flags-based tombstone** (`SKIPLIST_FLAG_DELETED` set in `skipl
 - [x] Compaction (full/flat: merge all SSTables per CF into one, drop tombstones)
 - [x] WAL integration with memtable writes (crash recovery via `wal_replay` on open, `wal_clear` on clean close)
 - [x] REPL (`src/main.c` + `src/repl.c`; binary: `./build/kvarkdb_repl [--db <path>] [--memtable-size <bytes>]`)
+- [ ] MVCC (Multi-Version Concurrency Control) — version keys with a timestamp/sequence number so readers see a consistent snapshot without blocking writers
+- [ ] File handle cache (LRU) — worth adding if leveled compaction is introduced and file count grows large
+- [ ] Block cache (CLOCK eviction) — worth adding for high-throughput read workloads; currently the OS page cache + memtable cover the same ground

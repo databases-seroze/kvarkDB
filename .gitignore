@@ -22,6 +22,8 @@ compile_commands.json
 *.exe
 *.out
 log_tests
+wal_tests
+kvarkdb_data/
 
 # Generated files
 *.log

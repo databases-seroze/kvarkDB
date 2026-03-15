@@ -49,9 +49,9 @@ cmake --build build
 - [x] Implement memtable
 - [x] Implement sstable
 - [x] Implement Column families
-- [ ] Write a minimal key-value db
-- [ ] Support REPL
-- [ ] Add Go, Python bindings
+- [x] Write a minimal key-value db
+- [x] Support REPL
+- [ ] Add Python bindings
 
 ## Features
 
