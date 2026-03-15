@@ -48,7 +48,7 @@ cmake --build build
 - [x] Implement cursor
 - [x] Implement memtable
 - [x] Implement sstable
-- [ ] Implement Column families
+- [x] Implement Column families
 - [ ] Write a minimal key-value db
 - [ ] Support REPL
 - [ ] Add Go, Python bindings

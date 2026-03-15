@@ -23,6 +23,7 @@ add_library(kvarkdb STATIC
     src/skiplist.c
     src/memtable.c
     src/sstable.c
+    src/kvarkdb.c
 )
 
 target_include_directories(kvarkdb PUBLIC
@@ -45,6 +46,7 @@ add_executable(bloomfilter_tests test/bloomfilter__tests.c)
 add_executable(skiplist_tests test/skiplist__tests.c)
 add_executable(memtable_tests test/memtable__tests.c)
 add_executable(sstable_tests test/sstable__tests.c)
+add_executable(kvarkdb_tests test/kvardkdb__tests.c)
 
 target_link_libraries(wal_tests PRIVATE kvarkdb)
 target_link_libraries(compress_tests PRIVATE kvarkdb)
@@ -52,6 +54,7 @@ target_link_libraries(bloomfilter_tests PRIVATE kvarkdb)
 target_link_libraries(skiplist_tests PRIVATE kvarkdb)
 target_link_libraries(memtable_tests PRIVATE kvarkdb)
 target_link_libraries(sstable_tests PRIVATE kvarkdb)
+target_link_libraries(kvarkdb_tests PRIVATE kvarkdb)
 
 # ===== Testing Support =====
 enable_testing()
@@ -61,6 +64,7 @@ add_test(NAME BloomfilterTests COMMAND bloomfilter_tests)
 add_test(NAME SkiplistTests COMMAND skiplist_tests)
 add_test(NAME MemtableTests COMMAND memtable_tests)
 add_test(NAME SstableTests COMMAND sstable_tests)
+add_test(NAME KvarkdbTests COMMAND kvarkdb_tests)
 
 # ===== Installation =====
 install(TARGETS kvarkdb DESTINATION lib)
