@@ -28,6 +28,8 @@ ctest --test-dir build
 ./build/memtable_tests
 ./build/sstable_tests
 ./build/kvarkdb_tests
+./build/compaction_tests
+./build/wal_integration_tests
 
 # Format code before committing (runs clang-format on all .c/.h files)
 ./code_formatter.sh
@@ -66,6 +68,20 @@ data/
 ├── sstables/  # Flushed sorted string tables (planned)
 └── meta/      # Column family registry and manifest
 ```
+
+### WAL Record Format
+
+Each WAL `.log` file is a sequence of binary records (little-endian fixed-width integers):
+```
+op_type     (1B)           WAL_OP_PUT (0x01) or WAL_OP_DELETE (0x02)
+cf_name_len (2B)           column-family name length
+cf_name     (cf_name_len B)
+key_size    (4B)
+key         (key_size B)
+value_size  (4B)           0 for DELETE
+value       (value_size B) absent for DELETE
+```
+The structured API (`wal_write_record`, `wal_replay`, `wal_clear`) handles serialization. `wal_replay` iterates all `.log` files in sequence order and calls a callback per record; truncated/corrupt records silently stop replay for that file.
 
 ### SSTable File Format
 
@@ -113,5 +129,5 @@ Deletes write a **flags-based tombstone** (`SKIPLIST_FLAG_DELETED` set in `skipl
 - [x] Column families (create, drop, persist/reload across reopen)
 - [x] Full CRUD (`put`, `get`, `delete` with tombstone suppression across SSTable levels)
 - [x] Compaction (full/flat: merge all SSTables per CF into one, drop tombstones)
-- [ ] WAL integration with memtable writes
-- [ ] REPL
+- [x] WAL integration with memtable writes (crash recovery via `wal_replay` on open, `wal_clear` on clean close)
+- [x] REPL (`src/main.c` + `src/repl.c`; binary: `./build/kvarkdb_repl [--db <path>] [--memtable-size <bytes>]`)

@@ -39,6 +39,10 @@ target_link_libraries(kvarkdb PUBLIC
     Threads::Threads
 )
 
+# ===== REPL Binary =====
+add_executable(kvarkdb_repl src/main.c src/repl.c)
+target_link_libraries(kvarkdb_repl PRIVATE kvarkdb)
+
 # ===== Tests =====
 add_executable(wal_tests test/wal__tests.c)
 add_executable(compress_tests test/compress__tests.c)
@@ -48,6 +52,7 @@ add_executable(memtable_tests test/memtable__tests.c)
 add_executable(sstable_tests test/sstable__tests.c)
 add_executable(kvarkdb_tests test/kvardkdb__tests.c)
 add_executable(compaction_tests test/compaction__tests.c)
+add_executable(wal_integration_tests test/wal_integration__tests.c)
 
 target_link_libraries(wal_tests PRIVATE kvarkdb)
 target_link_libraries(compress_tests PRIVATE kvarkdb)
@@ -57,6 +62,7 @@ target_link_libraries(memtable_tests PRIVATE kvarkdb)
 target_link_libraries(sstable_tests PRIVATE kvarkdb)
 target_link_libraries(kvarkdb_tests PRIVATE kvarkdb)
 target_link_libraries(compaction_tests PRIVATE kvarkdb)
+target_link_libraries(wal_integration_tests PRIVATE kvarkdb)
 
 # ===== Testing Support =====
 enable_testing()
@@ -68,6 +74,7 @@ add_test(NAME MemtableTests COMMAND memtable_tests)
 add_test(NAME SstableTests COMMAND sstable_tests)
 add_test(NAME KvarkdbTests COMMAND kvarkdb_tests)
 add_test(NAME CompactionTests COMMAND compaction_tests)
+add_test(NAME WalIntegrationTests COMMAND wal_integration_tests)
 
 # ===== Installation =====
 install(TARGETS kvarkdb DESTINATION lib)
