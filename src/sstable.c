@@ -1,5 +1,6 @@
 #include "sstable.h"
 #include "bloomfilter.h"
+#include "skiplist.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +33,215 @@ typedef struct {
 static void free_index(index_entry_t* index, size_t count) {
     for (size_t i = 0; i < count; i++) free(index[i].key);
     free(index);
+}
+
+/* raw entry used during compaction merge */
+typedef struct {
+    uint8_t* key;
+    uint32_t key_size;
+    uint8_t* value;
+    uint32_t value_size;
+    uint8_t  flags;
+    size_t   sst_idx;  /* 0 = oldest, higher = newer; used to pick winner on dup key */
+} raw_entry_t;
+
+static void free_raw_entries(raw_entry_t* entries, size_t count) {
+    if (!entries) return;
+    for (size_t i = 0; i < count; i++) {
+        free(entries[i].key);
+        free(entries[i].value);
+    }
+    free(entries);
+}
+
+/* qsort comparator: sort by key ascending, then sst_idx descending (newest first) */
+static int entry_compare(const void* a, const void* b) {
+    const raw_entry_t* ea = (const raw_entry_t*)a;
+    const raw_entry_t* eb = (const raw_entry_t*)b;
+    size_t min_len = ea->key_size < eb->key_size ? ea->key_size : eb->key_size;
+    int cmp = memcmp(ea->key, eb->key, min_len);
+    if (cmp != 0) return cmp;
+    if (ea->key_size != eb->key_size)
+        return (ea->key_size > eb->key_size) ? 1 : -1;
+    /* same key: newest SSTable first so it becomes the kept entry */
+    if (ea->sst_idx > eb->sst_idx) return -1;
+    if (ea->sst_idx < eb->sst_idx) return  1;
+    return 0;
+}
+
+/*
+ * sstable_read_all — loads every entry from an SSTable file into a heap array.
+ * sst_idx identifies which SSTable (for dup resolution during merge).
+ * on success sets *out_entries and *out_count; caller owns the array.
+ */
+static int sstable_read_all(const char* path, raw_entry_t** out_entries,
+                            size_t* out_count, size_t sst_idx) {
+    FILE* f = NULL;
+    index_entry_t* idx = NULL;
+    raw_entry_t* entries = NULL;
+    size_t n = 0;
+
+    f = fopen(path, "rb");
+    if (!f) return -1;
+
+    if (fseek(f, -(long)sizeof(sstable_footer_t), SEEK_END) != 0) goto fail;
+    sstable_footer_t footer;
+    if (fread(&footer, sizeof(footer), 1, f) != 1) goto fail;
+    n = (size_t)footer.num_entries;
+
+    if (n == 0) {
+        fclose(f);
+        *out_entries = NULL;
+        *out_count = 0;
+        return 0;
+    }
+
+    /* load index block */
+    if (fseek(f, (long)footer.index_offset, SEEK_SET) != 0) goto fail;
+    idx = calloc(n, sizeof(index_entry_t));
+    if (!idx) goto fail;
+
+    for (size_t i = 0; i < n; i++) {
+        uint32_t ks;
+        if (fread(&ks, sizeof(uint32_t), 1, f) != 1)  { free_index(idx, i);     idx = NULL; goto fail; }
+        idx[i].key_size = ks;
+        idx[i].key = malloc(ks);
+        if (!idx[i].key)                               { free_index(idx, i);     idx = NULL; goto fail; }
+        if (fread(idx[i].key, 1, ks, f) != ks)        { free_index(idx, i + 1); idx = NULL; goto fail; }
+        if (fread(&idx[i].offset, sizeof(uint64_t), 1, f) != 1) {
+            free_index(idx, i + 1); idx = NULL; goto fail;
+        }
+    }
+
+    /* read data entries in index order (sorted) */
+    entries = calloc(n, sizeof(raw_entry_t));   /* all pointers zeroed */
+    if (!entries) goto fail;
+
+    for (size_t i = 0; i < n; i++) {
+        if (fseek(f, (long)idx[i].offset, SEEK_SET) != 0) goto fail;
+
+        uint32_t ks;
+        if (fread(&ks, sizeof(uint32_t), 1, f) != 1) goto fail;
+        entries[i].key_size = ks;
+        entries[i].key = malloc(ks);
+        if (!entries[i].key) goto fail;
+        if (fread(entries[i].key, 1, ks, f) != ks)   goto fail;
+
+        if (fread(&entries[i].flags, sizeof(uint8_t), 1, f) != 1) goto fail;
+
+        uint32_t vs;
+        if (fread(&vs, sizeof(uint32_t), 1, f) != 1) goto fail;
+        entries[i].value_size = vs;
+        if (vs > 0) {
+            entries[i].value = malloc(vs);
+            if (!entries[i].value) goto fail;
+            if (fread(entries[i].value, 1, vs, f) != vs) goto fail;
+        }
+        entries[i].sst_idx = sst_idx;
+    }
+
+    free_index(idx, n);
+    fclose(f);
+    *out_entries = entries;
+    *out_count = n;
+    return 0;
+
+fail:
+    if (idx)     free_index(idx, n);
+    if (entries) free_raw_entries(entries, n);  /* safe: array was calloc'd */
+    if (f)       fclose(f);
+    return -1;
+}
+
+/*
+ * sstable_write_entries — writes a sorted raw_entry_t array to an SSTable file.
+ * entries must already be in ascending key order.
+ * this is essentially sstable_write() but from a raw array rather than a memtable.
+ */
+static int sstable_write_entries(const raw_entry_t* entries, size_t count,
+                                 const char* path) {
+    if (count == 0) return -1;
+
+    BloomFilter* bf = bloom_create(count * BLOOM_BITS_PER_KEY, BLOOM_NUM_HASHES);
+    if (!bf) return -1;
+
+    index_entry_t* idx = calloc(count, sizeof(index_entry_t));
+    if (!idx) { bloom_destroy(bf); return -1; }
+
+    FILE* f = fopen(path, "wb");
+    if (!f) { free(idx); bloom_destroy(bf); return -1; }
+
+    /* write data block, build index and bloom filter */
+    for (size_t i = 0; i < count; i++) {
+        idx[i].offset   = (uint64_t)ftell(f);
+        idx[i].key_size = entries[i].key_size;
+        idx[i].key      = malloc(entries[i].key_size);
+        if (!idx[i].key) goto fail;
+        memcpy(idx[i].key, entries[i].key, entries[i].key_size);
+
+        uint32_t ks = entries[i].key_size;
+        uint32_t vs = entries[i].value_size;
+        if (fwrite(&ks,              sizeof(uint32_t), 1,  f) != 1)  goto fail;
+        if (fwrite(entries[i].key,   1,                ks, f) != ks) goto fail;
+        if (fwrite(&entries[i].flags,sizeof(uint8_t),  1,  f) != 1)  goto fail;
+        if (fwrite(&vs,              sizeof(uint32_t), 1,  f) != 1)  goto fail;
+        if (vs > 0 && fwrite(entries[i].value, 1, vs, f) != vs)      goto fail;
+
+        /*
+         * bloom_add calls fnv1a_hash(item, strlen(item) + i) for i in
+         * [0, num_hashes).  For i > 0 it intentionally reads past the null
+         * terminator; allocate enough padding so those reads stay in-bounds.
+         */
+        {
+            char* bloom_key = calloc(entries[i].key_size + 1 + BLOOM_NUM_HASHES, 1);
+            if (!bloom_key) goto fail;
+            memcpy(bloom_key, entries[i].key, entries[i].key_size);
+            bloom_add(bf, bloom_key);
+            free(bloom_key);
+        }
+    }
+
+    /* write index block */
+    {
+        uint64_t index_offset = (uint64_t)ftell(f);
+        for (size_t j = 0; j < count; j++) {
+            if (fwrite(&idx[j].key_size, sizeof(uint32_t), 1, f) != 1)             goto fail;
+            if (fwrite(idx[j].key, 1, idx[j].key_size, f) != idx[j].key_size)      goto fail;
+            if (fwrite(&idx[j].offset, sizeof(uint64_t), 1, f) != 1)               goto fail;
+        }
+        uint64_t index_size = (uint64_t)ftell(f) - index_offset;
+
+        free_index(idx, count);
+        idx = NULL;
+
+        /* write bloom block */
+        uint64_t bloom_offset = (uint64_t)ftell(f);
+        if (fwrite(bf->bit_array, 1, bf->size, f) != bf->size) goto fail;
+        uint64_t bloom_size = (uint64_t)bf->size;
+        bloom_destroy(bf);
+        bf = NULL;
+
+        /* write footer */
+        sstable_footer_t footer = {
+            .index_offset     = index_offset,
+            .index_size       = index_size,
+            .bloom_offset     = bloom_offset,
+            .bloom_size       = bloom_size,
+            .bloom_num_hashes = BLOOM_NUM_HASHES,
+            .num_entries      = (uint64_t)count,
+        };
+        if (fwrite(&footer, sizeof(footer), 1, f) != 1) goto fail;
+    }
+
+    fclose(f);
+    return 0;
+
+fail:
+    if (idx) free_index(idx, count);
+    if (bf)  bloom_destroy(bf);
+    fclose(f);
+    remove(path);
+    return -1;
 }
 
 int sstable_write(memtable_t* memtable, const char* path) {
@@ -79,7 +289,18 @@ int sstable_write(memtable_t* memtable, const char* path) {
         if (fwrite(&vs,         sizeof(uint32_t), 1,          f) != 1)          goto err;
         if (vs > 0 && fwrite(value, 1, value_size, f) != value_size)            goto err;
 
-        bloom_add(bf, (const char*)key);
+        /*
+         * bloom_add calls fnv1a_hash(item, strlen(item) + i) for i in
+         * [0, num_hashes).  For i > 0 it intentionally reads past the null
+         * terminator; allocate enough padding so those reads stay in-bounds.
+         */
+        {
+            char* bloom_key = calloc(key_size + 1 + BLOOM_NUM_HASHES, 1);
+            if (!bloom_key) goto err;
+            memcpy(bloom_key, key, key_size);
+            bloom_add(bf, bloom_key);
+            free(bloom_key);
+        }
         i++;
     } while (skiplist_cursor_next(cursor) == 0);
 
@@ -127,6 +348,99 @@ err:
     if (bf)     bloom_destroy(bf);
     fclose(f);
     return -1;
+}
+
+int sstable_merge(const char** paths, size_t count, const char* out_path) {
+    if (!paths || count == 0 || !out_path) return -1;
+
+    /* read all entries from all SSTables into one flat array */
+    raw_entry_t** per_sst = calloc(count, sizeof(raw_entry_t*));
+    size_t*       per_cnt = calloc(count, sizeof(size_t));
+    if (!per_sst || !per_cnt) { free(per_sst); free(per_cnt); return -1; }
+
+    size_t total = 0;
+    for (size_t i = 0; i < count; i++) {
+        if (sstable_read_all(paths[i], &per_sst[i], &per_cnt[i], i) != 0) {
+            for (size_t j = 0; j < i; j++) free_raw_entries(per_sst[j], per_cnt[j]);
+            free(per_sst); free(per_cnt);
+            return -1;
+        }
+        total += per_cnt[i];
+    }
+
+    if (total == 0) {
+        free(per_sst); free(per_cnt);
+        return 1;
+    }
+
+    raw_entry_t* flat = calloc(total, sizeof(raw_entry_t));
+    if (!flat) {
+        for (size_t i = 0; i < count; i++) free_raw_entries(per_sst[i], per_cnt[i]);
+        free(per_sst); free(per_cnt);
+        return -1;
+    }
+
+    size_t pos = 0;
+    for (size_t i = 0; i < count; i++) {
+        if (per_cnt[i] > 0) {
+            memcpy(flat + pos, per_sst[i], per_cnt[i] * sizeof(raw_entry_t));
+            pos += per_cnt[i];
+        }
+        free(per_sst[i]);   /* free the array shell; entries are now owned by flat */
+    }
+    free(per_sst);
+    free(per_cnt);
+
+    /* sort: key ascending, sst_idx descending for ties (newest entry first per key) */
+    qsort(flat, total, sizeof(raw_entry_t), entry_compare);
+
+    /*
+     * Deduplicate and drop tombstones in two passes to avoid use-after-free.
+     *
+     * Pass 1: mark which entries to keep.  We read flat[i-1].key for comparison;
+     *         no keys are freed yet so every pointer is still valid.
+     *         Entries for the same key are adjacent (sorted); the first occurrence
+     *         is the newest (highest sst_idx sorts first).  A tombstone at the
+     *         newest position suppresses all older copies of that key.
+     *
+     * Pass 2: transfer kept entries to `out`; free discarded entries.
+     */
+    bool* keep = calloc(total, sizeof(bool));
+    raw_entry_t* out = calloc(total, sizeof(raw_entry_t));
+    if (!keep || !out) {
+        free(keep); free(out);
+        free_raw_entries(flat, total); free(flat);
+        return -1;
+    }
+
+    for (size_t i = 0; i < total; i++) {
+        bool same_key = (i > 0 &&
+                         flat[i].key_size == flat[i - 1].key_size &&
+                         memcmp(flat[i].key, flat[i - 1].key, flat[i].key_size) == 0);
+        keep[i] = !same_key && !(flat[i].flags & SKIPLIST_FLAG_DELETED);
+    }
+
+    size_t out_count = 0;
+    for (size_t i = 0; i < total; i++) {
+        if (keep[i]) {
+            out[out_count++] = flat[i];  /* transfer ownership */
+        } else {
+            free(flat[i].key);
+            free(flat[i].value);
+        }
+    }
+    free(keep);
+    free(flat);  /* shell only; entries were moved to out or freed above */
+
+    int rc;
+    if (out_count == 0) {
+        rc = 1;  /* all entries were tombstones or duplicates */
+    } else {
+        rc = (sstable_write_entries(out, out_count, out_path) == 0) ? 0 : -1;
+    }
+
+    free_raw_entries(out, out_count);   /* also frees the out array itself */
+    return rc;
 }
 
 int sstable_get(const char* path, const uint8_t* key, size_t key_size,

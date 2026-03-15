@@ -54,4 +54,18 @@ int sstable_write(memtable_t* memtable, const char* path);
 int sstable_get(const char* path, const uint8_t* key, size_t key_size,
                 uint8_t** value, size_t* value_size, uint8_t* flags);
 
+/*
+ * sstable_merge
+ * merges `count` SSTable files into one new SSTable at out_path.
+ * paths[0] is the oldest SSTable, paths[count-1] is the newest.
+ * for duplicate keys the newest SSTable wins.
+ * tombstones are dropped (this is a full compaction — no older SSTables remain).
+ *
+ * return values:
+ *   0  — success; merged file written to out_path
+ *   1  — success; no live entries remain after compaction; out_path not created
+ *  -1  — i/o or allocation error
+ */
+int sstable_merge(const char** paths, size_t count, const char* out_path);
+
 #endif

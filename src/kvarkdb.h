@@ -19,6 +19,7 @@
 typedef struct kvarkdb_config {
     size_t memtable_max_size;    // flush threshold in bytes
     size_t sstable_target_size;  // optional, could be 2 * memtable_max_size
+    size_t compaction_threshold; // SSTable count per CF that triggers compaction; 0 = default (4)
     char*  db_path;
 } kvarkdb_config_t;
 

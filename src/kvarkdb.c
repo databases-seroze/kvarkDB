@@ -9,6 +9,9 @@
 /* maximum supported path length */
 #define KVARKDB_MAX_PATH 1024
 
+/* compact a column family when its SSTable count reaches this threshold */
+#define KVARKDB_DEFAULT_COMPACTION_THRESHOLD 4
+
 
 #define DATA_DIR             "data"
 #define META_DIR             "meta"
@@ -73,6 +76,29 @@ static int persist_column_families(kvarkdb_t* db) {
     return rename(tmp, path);
 }
 
+/* rewrite data/meta/manifest from scratch reflecting current cf->sst_paths state */
+static int rewrite_manifest(kvarkdb_t* db) {
+    char path[KVARKDB_MAX_PATH], tmp[KVARKDB_MAX_PATH];
+    if (snprintf(path, sizeof(path), "%s/%s/%s",
+                 db->config.db_path, DATA_DIR, MANIFEST_FILE) >= (int)sizeof(path)) return -1;
+    if (snprintf(tmp, sizeof(tmp), "%s.tmp", path) >= (int)sizeof(tmp)) return -1;
+
+    FILE* f = fopen(tmp, "w");
+    if (!f) return -1;
+
+    for (size_t i = 0; i < db->column_family_count; i++) {
+        kvarkdb_column_family_t* cf = &db->column_families[i];
+        for (size_t j = 0; j < cf->sst_count; j++) {
+            if (fprintf(f, "%s %s\n", cf->name, cf->sst_paths[j]) < 0) {
+                fclose(f); return -1;
+            }
+        }
+    }
+
+    fclose(f);
+    return rename(tmp, path);
+}
+
 /* append one SSTable entry to data/meta/manifest */
 static int append_manifest(kvarkdb_t* db, const char* cf_name, const char* sst_path) {
     char path[KVARKDB_MAX_PATH];
@@ -84,6 +110,46 @@ static int append_manifest(kvarkdb_t* db, const char* cf_name, const char* sst_p
     int rc = fprintf(f, "%s %s\n", cf_name, sst_path);
     fclose(f);
     return rc < 0 ? -1 : 0;
+}
+
+/*
+ * compact_column_family — merges all SSTables for a CF into one.
+ * removes old SSTable files, updates cf->sst_paths, and rewrites the manifest.
+ * called automatically from flush_memtable when the SSTable count hits the threshold.
+ */
+static int compact_column_family(kvarkdb_t* db, kvarkdb_column_family_t* cf) {
+    if (cf->sst_count < 2) return 0;
+
+    char out_path[KVARKDB_MAX_PATH];
+    if (snprintf(out_path, sizeof(out_path), "%s/%s/%s/%s/%lu.sst",
+                 db->config.db_path, DATA_DIR, SSTABLES_DIR, cf->name,
+                 (unsigned long)cf->next_sst_seq) >= (int)sizeof(out_path)) return -1;
+
+    int rc = sstable_merge((const char**)cf->sst_paths, cf->sst_count, out_path);
+    if (rc == -1) return -1;
+
+    /* remove old SSTable files from disk */
+    for (size_t i = 0; i < cf->sst_count; i++) {
+        remove(cf->sst_paths[i]);
+        free(cf->sst_paths[i]);
+    }
+    free(cf->sst_paths);
+    cf->sst_paths = NULL;
+    cf->sst_count = 0;
+    cf->next_sst_seq++;
+
+    if (rc == 0) {
+        /* output file was written — register it */
+        cf->sst_paths = malloc(sizeof(char*));
+        if (!cf->sst_paths) return -1;
+        cf->sst_paths[0] = strdup(out_path);
+        if (!cf->sst_paths[0]) { free(cf->sst_paths); cf->sst_paths = NULL; return -1; }
+        cf->sst_count = 1;
+    }
+    /* rc == 1 means all entries were tombstones: sst_count stays 0, no file created */
+
+    rewrite_manifest(db);
+    return 0;
 }
 
 /*
@@ -120,7 +186,16 @@ static int flush_memtable(kvarkdb_t* db, kvarkdb_column_family_t* cf) {
     append_manifest(db, cf->name, sst_path);
 
     memtable_destroy(&cf->memtable);
-    return memtable_new(&cf->memtable, 12, 0.5f);
+    if (memtable_new(&cf->memtable, 12, 0.5f) != 0) return -1;
+
+    /* trigger compaction when SSTable count reaches the configured threshold */
+    size_t threshold = db->config.compaction_threshold
+                       ? db->config.compaction_threshold
+                       : KVARKDB_DEFAULT_COMPACTION_THRESHOLD;
+    if (cf->sst_count >= threshold)
+        return compact_column_family(db, cf);
+
+    return 0;
 }
 
 static void free_cf_contents(kvarkdb_column_family_t* cf) {
