@@ -13,16 +13,21 @@ typedef struct {
     size_t span;
 } skiplist_level_t;
 
-/* flags bits for skiplist_node_t */
+/*
+ * flags bits for skiplist_node_t.
+ * Using a dedicated field (not a magic sentinel in the value bytes) means
+ * any user value — including one that happens to look like a tombstone —
+ * is stored and returned correctly.
+ */
 #define SKIPLIST_FLAG_DELETED 0x01  /* node is a tombstone — key was deleted */
 
 typedef struct skiplist_node_t {
     uint8_t* key;
     size_t key_size;
-    uint8_t* value;
-    size_t value_size;
+    uint8_t* value;       /* NULL for tombstone nodes */
+    size_t value_size;    /* 0 for tombstone nodes */
     time_t ttl;
-    uint8_t flags;
+    uint8_t flags;        /* bitfield: see SKIPLIST_FLAG_* above */
     skiplist_level_t* levels; // array of levels, length = node_level at creation
 } skiplist_node_t;
 
