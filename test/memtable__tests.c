@@ -46,7 +46,7 @@ void test_memtable_put_get(void) {
 
     uint8_t *val = NULL;
     size_t *val_size = NULL;
-    assert(memtable_get(mt, (const uint8_t *)"key", 3, &val, &val_size) == 0);
+    assert(memtable_get(mt, (const uint8_t *)"key", 3, &val, &val_size, NULL) == 0);
     assert(*val_size == 5);
     assert(memcmp(val, "value", 5) == 0);
 
@@ -88,25 +88,35 @@ void test_memtable_delete(void) {
     printf("Testing memtable_delete... ");
 
     memtable_t *mt = make_memtable();
-    put(mt, "key", "val");   /* size = 6 */
+    put(mt, "key", "val");   /* key=3 + val=3 = 6 */
     assert(mt->size_bytes == 6);
 
     assert(memtable_delete(mt, (const uint8_t *)"key", 3) == 0);
-    assert(mt->size_bytes == 0);
+    /* tombstone stays in skiplist: value gone (−3), key remains → size_bytes = 3 */
+    assert(mt->size_bytes == 3);
 
+    /* get returns the tombstone node — caller must check flags */
     uint8_t *val = NULL;
     size_t *val_size = NULL;
-    assert(memtable_get(mt, (const uint8_t *)"key", 3, &val, &val_size) == -1);
+    uint8_t flags = 0;
+    assert(memtable_get(mt, (const uint8_t *)"key", 3, &val, &val_size, &flags) == 0);
+    assert(flags & SKIPLIST_FLAG_DELETED);
 
     memtable_destroy(&mt);
     printf(GREEN "PASSED\n" RESET);
 }
 
 void test_memtable_delete_nonexistent(void) {
-    printf("Testing memtable_delete nonexistent key... ");
+    printf("Testing memtable_delete nonexistent key inserts tombstone... ");
 
     memtable_t *mt = make_memtable();
-    assert(memtable_delete(mt, (const uint8_t *)"ghost", 5) == -1);
+    /* key not in memtable — succeeds anyway (tombstone for SSTable key) */
+    assert(memtable_delete(mt, (const uint8_t *)"ghost", 5) == 0);
+    assert(mt->size_bytes == 5);  /* key_size only */
+
+    uint8_t *val = NULL; size_t *val_size = NULL; uint8_t flags = 0;
+    assert(memtable_get(mt, (const uint8_t *)"ghost", 5, &val, &val_size, &flags) == 0);
+    assert(flags & SKIPLIST_FLAG_DELETED);
 
     memtable_destroy(&mt);
     printf(GREEN "PASSED\n" RESET);

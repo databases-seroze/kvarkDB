@@ -9,20 +9,6 @@
 /* maximum supported path length */
 #define KVARKDB_MAX_PATH 1024
 
-/*
- * Tombstone sentinel — written as the value when a key is deleted.
- * Never exposed through the public API; suppresses matching keys in
- * both the memtable and SSTable read paths so that deletes work
- * correctly even when the key was previously flushed to SSTable.
- * Compaction will eventually remove tombstone entries entirely.
- */
-static const uint8_t TOMBSTONE[]    = {0x00, 0x54, 0x4F, 0x4D, 0x42};  /* \0TOMB */
-static const size_t  TOMBSTONE_SIZE = sizeof(TOMBSTONE);
-
-static bool is_tombstone_value(const uint8_t* val, size_t val_size) {
-    return val_size == TOMBSTONE_SIZE &&
-           memcmp(val, TOMBSTONE, TOMBSTONE_SIZE) == 0;
-}
 
 #define DATA_DIR             "data"
 #define META_DIR             "meta"
@@ -330,9 +316,10 @@ char* kvarkdb_get(kvarkdb_t* db, const char* column_family, const char* key) {
     /* check memtable */
     uint8_t*  val          = NULL;
     size_t*   val_size_ptr = NULL;
+    uint8_t   mt_flags     = 0;
     if (memtable_get(cf->memtable, (const uint8_t*)key, key_len,
-                     &val, &val_size_ptr) == 0) {
-        if (is_tombstone_value(val, *val_size_ptr)) return NULL;
+                     &val, &val_size_ptr, &mt_flags) == 0) {
+        if (mt_flags & SKIPLIST_FLAG_DELETED) return NULL;
         char* result = malloc(*val_size_ptr + 1);
         if (!result) return NULL;
         memcpy(result, val, *val_size_ptr);
@@ -344,9 +331,10 @@ char* kvarkdb_get(kvarkdb_t* db, const char* column_family, const char* key) {
     for (int i = (int)cf->sst_count - 1; i >= 0; i--) {
         uint8_t* sst_val      = NULL;
         size_t   sst_val_size = 0;
+        uint8_t  sst_flags    = 0;
         if (sstable_get(cf->sst_paths[i], (const uint8_t*)key, key_len,
-                        &sst_val, &sst_val_size) == 0) {
-            if (is_tombstone_value(sst_val, sst_val_size)) { free(sst_val); return NULL; }
+                        &sst_val, &sst_val_size, &sst_flags) == 0) {
+            if (sst_flags & SKIPLIST_FLAG_DELETED) { free(sst_val); return NULL; }
             char* result = realloc(sst_val, sst_val_size + 1);
             if (!result) { free(sst_val); return NULL; }
             result[sst_val_size] = '\0';
@@ -363,10 +351,9 @@ int kvarkdb_delete(kvarkdb_t* db, const char* column_family, const char* key) {
     kvarkdb_column_family_t* cf = find_cf(db, column_family);
     if (!cf) return -1;
 
-    /* Write a tombstone sentinel so that keys flushed to SSTable are also
-     * correctly suppressed on the read path (memtable checked first, then
-     * SSTables newest → oldest; first tombstone wins). */
-    return memtable_put(cf->memtable,
-                        (const uint8_t*)key, strlen(key),
-                        (uint8_t*)TOMBSTONE, TOMBSTONE_SIZE, 0);
+    /* Write a flags-based tombstone (SKIPLIST_FLAG_DELETED) so that keys
+     * flushed to SSTable are correctly suppressed on the read path.
+     * The tombstone node stays in the skiplist and is flushed to SSTable
+     * naturally; compaction will eventually remove it. */
+    return memtable_delete(cf->memtable, (const uint8_t*)key, strlen(key));
 }

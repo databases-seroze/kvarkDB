@@ -24,9 +24,11 @@ int memtable_destroy(memtable_t** memtable);
 int memtable_put(memtable_t* memtable, const uint8_t* key, size_t key_size,
                  uint8_t* value, size_t value_size, time_t ttl);
 
-// look up a key
+// look up a key; flags receives SKIPLIST_FLAG_DELETED if the entry is a tombstone
+// flags may be NULL if the caller does not need it
+// returns 0 if found (including tombstones), -1 if not found
 int memtable_get(memtable_t* memtable, const uint8_t* key, size_t key_size,
-                 uint8_t** value, size_t** value_size);
+                 uint8_t** value, size_t** value_size, uint8_t* flags);
 
 // delete a key
 int memtable_delete(memtable_t* memtable, const uint8_t* key, size_t key_size);

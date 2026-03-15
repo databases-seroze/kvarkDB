@@ -37,7 +37,7 @@ void test_sstable_write_read(void) {
     memtable_destroy(&mt);
 
     uint8_t *val = NULL; size_t val_size = 0;
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"banana", 6, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"banana", 6, &val, &val_size, NULL) == 0);
     assert(val_size == 6);
     assert(memcmp(val, "yellow", 6) == 0);
     free(val);
@@ -58,7 +58,7 @@ void test_sstable_get_first_key(void) {
     memtable_destroy(&mt);
 
     uint8_t *val = NULL; size_t val_size = 0;
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"alpha", 5, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"alpha", 5, &val, &val_size, NULL) == 0);
     assert(val_size == 1);
     assert(memcmp(val, "1", 1) == 0);
     free(val);
@@ -79,7 +79,7 @@ void test_sstable_get_last_key(void) {
     memtable_destroy(&mt);
 
     uint8_t *val = NULL; size_t val_size = 0;
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"gamma", 5, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"gamma", 5, &val, &val_size, NULL) == 0);
     assert(val_size == 1);
     assert(memcmp(val, "3", 1) == 0);
     free(val);
@@ -99,7 +99,7 @@ void test_sstable_get_not_found(void) {
     memtable_destroy(&mt);
 
     uint8_t *val = NULL; size_t val_size = 0;
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"mango", 5, &val, &val_size) == -1);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"mango", 5, &val, &val_size, NULL) == -1);
     assert(val == NULL);
 
     unlink(TEST_SST_PATH);
@@ -132,14 +132,14 @@ void test_sstable_write_empty_memtable(void) {
 void test_sstable_get_null_path(void) {
     printf("Testing sstable_get with NULL path... ");
     uint8_t *val = NULL; size_t val_size = 0;
-    assert(sstable_get(NULL, (const uint8_t *)"key", 3, &val, &val_size) == -1);
+    assert(sstable_get(NULL, (const uint8_t *)"key", 3, &val, &val_size, NULL) == -1);
     printf(GREEN "PASSED\n" RESET);
 }
 
 void test_sstable_get_null_key(void) {
     printf("Testing sstable_get with NULL key... ");
     uint8_t *val = NULL; size_t val_size = 0;
-    assert(sstable_get(TEST_SST_PATH, NULL, 3, &val, &val_size) == -1);
+    assert(sstable_get(TEST_SST_PATH, NULL, 3, &val, &val_size, NULL) == -1);
     printf(GREEN "PASSED\n" RESET);
 }
 
@@ -147,7 +147,7 @@ void test_sstable_get_nonexistent_file(void) {
     printf("Testing sstable_get on nonexistent file... ");
     uint8_t *val = NULL; size_t val_size = 0;
     assert(sstable_get("/tmp/does_not_exist_kvark.sst",
-                       (const uint8_t *)"key", 3, &val, &val_size) == -1);
+                       (const uint8_t *)"key", 3, &val, &val_size, NULL) == -1);
     printf(GREEN "PASSED\n" RESET);
 }
 
@@ -161,13 +161,13 @@ void test_sstable_single_entry(void) {
     memtable_destroy(&mt);
 
     uint8_t *val = NULL; size_t val_size = 0;
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"onlyone", 7, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"onlyone", 7, &val, &val_size, NULL) == 0);
     assert(val_size == 5);
     assert(memcmp(val, "value", 5) == 0);
     free(val);
 
     /* non-existent key in single-entry table */
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"other", 5, &val, &val_size) == -1);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"other", 5, &val, &val_size, NULL) == -1);
 
     unlink(TEST_SST_PATH);
     printf(GREEN "PASSED\n" RESET);
@@ -189,7 +189,7 @@ void test_sstable_large_value(void) {
     memtable_destroy(&mt);
 
     uint8_t *val = NULL; size_t val_size = 0;
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"bigkey", 6, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"bigkey", 6, &val, &val_size, NULL) == 0);
     assert(val_size == large_size);
     for (size_t i = 0; i < large_size; i++) assert(val[i] == 0xAB);
     free(val);
@@ -211,13 +211,13 @@ void test_sstable_key_prefix(void) {
 
     uint8_t *val = NULL; size_t val_size = 0;
 
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"app",    3, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"app",    3, &val, &val_size, NULL) == 0);
     assert(memcmp(val, "short", 5) == 0); free(val); val = NULL;
 
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"apple",  5, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"apple",  5, &val, &val_size, NULL) == 0);
     assert(memcmp(val, "full", 4) == 0); free(val); val = NULL;
 
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"applet", 6, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"applet", 6, &val, &val_size, NULL) == 0);
     assert(memcmp(val, "longer", 6) == 0); free(val); val = NULL;
 
     unlink(TEST_SST_PATH);
@@ -234,7 +234,7 @@ void test_sstable_value_is_heap_allocated(void) {
     memtable_destroy(&mt);
 
     uint8_t *val = NULL; size_t val_size = 0;
-    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"key", 3, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH, (const uint8_t *)"key", 3, &val, &val_size, NULL) == 0);
 
     /* write to the returned buffer — would segfault if it weren't heap-allocated */
     val[0] = 'X';
@@ -259,10 +259,10 @@ void test_sstable_independent_files(void) {
 
     uint8_t *val = NULL; size_t val_size = 0;
 
-    assert(sstable_get(TEST_SST_PATH,  (const uint8_t *)"key", 3, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH,  (const uint8_t *)"key", 3, &val, &val_size, NULL) == 0);
     assert(memcmp(val, "from_table_1", 12) == 0); free(val); val = NULL;
 
-    assert(sstable_get(TEST_SST_PATH2, (const uint8_t *)"key", 3, &val, &val_size) == 0);
+    assert(sstable_get(TEST_SST_PATH2, (const uint8_t *)"key", 3, &val, &val_size, NULL) == 0);
     assert(memcmp(val, "from_table_2", 12) == 0); free(val);
 
     unlink(TEST_SST_PATH);
@@ -291,7 +291,7 @@ void test_sstable_stress(void) {
         uint8_t *got = NULL; size_t got_size = 0;
         assert(sstable_get(TEST_SST_PATH,
                            (const uint8_t *)key, strlen(key),
-                           &got, &got_size) == 0);
+                           &got, &got_size, NULL) == 0);
         assert(got_size == strlen(val));
         assert(memcmp(got, val, got_size) == 0);
         free(got);
@@ -318,7 +318,7 @@ void test_sstable_all_keys(void) {
         uint8_t *val = NULL; size_t val_size = 0;
         assert(sstable_get(TEST_SST_PATH,
                            (const uint8_t *)keys[i], strlen(keys[i]),
-                           &val, &val_size) == 0);
+                           &val, &val_size, NULL) == 0);
         assert(val_size == strlen(vals[i]));
         assert(memcmp(val, vals[i], val_size) == 0);
         free(val);

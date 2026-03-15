@@ -53,6 +53,7 @@ int skiplist_new(skiplist_t** skiplist, size_t max_levels, float probability) {
     (*skiplist)->head->value = NULL;
     (*skiplist)->head->value_size = 0;
     (*skiplist)->head->ttl = 0;
+    (*skiplist)->head->flags = 0;
 
     // Initialize all head levels to point to NULL
     for (size_t i = 0; i < max_levels; i++) {
@@ -94,8 +95,12 @@ int skiplist_clear(skiplist_t** skiplist) {
 }
 
 int skiplist_put(skiplist_t** skiplist, const uint8_t* key, size_t key_size,
-                uint8_t* value, size_t value_size, time_t ttl) {
-    if (*skiplist == NULL || key == NULL || value == NULL) {
+                uint8_t* value, size_t value_size, time_t ttl, uint8_t flags) {
+    if (*skiplist == NULL || key == NULL) {
+        return -1;
+    }
+    /* value may only be NULL for tombstone entries (value_size must also be 0) */
+    if (value == NULL && value_size != 0) {
         return -1;
     }
 
@@ -119,18 +124,20 @@ int skiplist_put(skiplist_t** skiplist, const uint8_t* key, size_t key_size,
         // Key exists, update the value
         skiplist_node_t* existing = current->levels[0].next;
 
-        // Free old value if size differs
         if (existing->value_size != value_size) {
             free(existing->value);
-            existing->value = (uint8_t*)malloc(value_size);
-            if (existing->value == NULL) {
-                return -1;
+            if (value_size > 0) {
+                existing->value = (uint8_t*)malloc(value_size);
+                if (existing->value == NULL) return -1;
+            } else {
+                existing->value = NULL;
             }
         }
 
-        memcpy(existing->value, value, value_size);
+        if (value_size > 0) memcpy(existing->value, value, value_size);
         existing->value_size = value_size;
         existing->ttl = ttl;
+        existing->flags = flags;
         return 0;
     }
 
@@ -148,8 +155,8 @@ int skiplist_put(skiplist_t** skiplist, const uint8_t* key, size_t key_size,
     }
 
     new_node->key = (uint8_t*)malloc(key_size);
-    new_node->value = (uint8_t*)malloc(value_size);
-    if (new_node->key == NULL || new_node->value == NULL) {
+    new_node->value = value_size > 0 ? (uint8_t*)malloc(value_size) : NULL;
+    if (new_node->key == NULL || (value_size > 0 && new_node->value == NULL)) {
         if (new_node->key) free(new_node->key);
         if (new_node->value) free(new_node->value);
         free(new_node->levels);
@@ -159,9 +166,10 @@ int skiplist_put(skiplist_t** skiplist, const uint8_t* key, size_t key_size,
 
     memcpy(new_node->key, key, key_size);
     new_node->key_size = key_size;
-    memcpy(new_node->value, value, value_size);
+    if (value_size > 0) memcpy(new_node->value, value, value_size);
     new_node->value_size = value_size;
     new_node->ttl = ttl;
+    new_node->flags = flags;
 
     // Insert the new node
     for (size_t i = 0; i < node_level; i++) {
@@ -188,7 +196,7 @@ int skiplist_put(skiplist_t** skiplist, const uint8_t* key, size_t key_size,
 }
 
 int skiplist_get(skiplist_t* skiplist, const uint8_t* key, size_t key_size,
-                uint8_t** value, size_t** value_size) {
+                uint8_t** value, size_t** value_size, uint8_t* flags) {
     if (skiplist == NULL || key == NULL) {
         return -1;
     }
@@ -205,13 +213,14 @@ int skiplist_get(skiplist_t* skiplist, const uint8_t* key, size_t key_size,
 
     if (current != skiplist->head &&
         key_compare(current->key, current->key_size, key, key_size) == 0) {
-        // Check TTL if it's set
+        /* expired TTL — treat as not found */
         if (current->ttl > 0 && current->ttl < time(NULL)) {
-            return -1; // Key has expired
+            return -1;
         }
 
-        *value = current->value;
+        *value      = current->value;
         *value_size = &current->value_size;
+        if (flags) *flags = current->flags;
         return 0;
     }
 
@@ -306,13 +315,14 @@ int skiplist_cursor_prev(skiplist_cursor_t* cursor) {
 }
 
 int skiplist_cursor_get(skiplist_cursor_t* cursor, uint8_t** key, size_t* key_size,
-                        uint8_t** value, size_t* value_size) {
+                        uint8_t** value, size_t* value_size, uint8_t* flags) {
     if (cursor == NULL || cursor->current == NULL) return -1;
 
     *key        = cursor->current->key;
     *key_size   = cursor->current->key_size;
     *value      = cursor->current->value;
     *value_size = cursor->current->value_size;
+    if (flags) *flags = cursor->current->flags;
     return 0;
 }
 

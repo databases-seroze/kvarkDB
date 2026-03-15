@@ -13,7 +13,8 @@
  * SSTable file layout:
  *
  * [ data block ]
- *   for each entry: key_size(4B) | key | value_size(4B) | value
+ *   for each entry: key_size(4B) | key | flags(1B) | value_size(4B) | value
+ *   flags bit 0x01 = SKIPLIST_FLAG_DELETED (tombstone, value_size is 0)
  *
  * [ index block ]
  *   for each entry: key_size(4B) | key | data_offset(8B)
@@ -45,11 +46,12 @@ int sstable_write(memtable_t* memtable, const char* path);
  * @param path        SSTable file path
  * @param key         key to look up
  * @param key_size    size of key
- * @param value       output: heap-allocated value buffer — caller must free
- * @param value_size  output: size of value
- * @return 0 on success, -1 if not found
+ * @param value       output: heap-allocated value buffer — caller must free (NULL for tombstones)
+ * @param value_size  output: size of value (0 for tombstones)
+ * @param flags       output: entry flags (SKIPLIST_FLAG_DELETED if tombstone)
+ * @return 0 if found (including tombstones), -1 if not found
  */
 int sstable_get(const char* path, const uint8_t* key, size_t key_size,
-                uint8_t** value, size_t* value_size);
+                uint8_t** value, size_t* value_size, uint8_t* flags);
 
 #endif

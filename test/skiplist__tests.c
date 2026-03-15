@@ -19,7 +19,7 @@ static void put(skiplist_t **sl, const char *key, const char *val) {
     assert(skiplist_put(sl,
                         (const uint8_t *)key, strlen(key),
                         (uint8_t *)val, strlen(val),
-                        0) == 0);
+                        0, 0) == 0);
 }
 
 /* ------------------------------------------------------------------ */
@@ -60,7 +60,7 @@ void test_skiplist_put_get(void) {
 
     uint8_t *val = NULL;
     size_t *val_size = NULL;
-    assert(skiplist_get(sl, (const uint8_t *)"hello", 5, &val, &val_size) == 0);
+    assert(skiplist_get(sl, (const uint8_t *)"hello", 5, &val, &val_size, NULL) == 0);
     assert(val != NULL);
     assert(*val_size == 5);
     assert(memcmp(val, "world", 5) == 0);
@@ -77,7 +77,7 @@ void test_skiplist_get_not_found(void) {
 
     uint8_t *val = NULL;
     size_t *val_size = NULL;
-    assert(skiplist_get(sl, (const uint8_t *)"missing", 7, &val, &val_size) == -1);
+    assert(skiplist_get(sl, (const uint8_t *)"missing", 7, &val, &val_size, NULL) == -1);
 
     skiplist_clear(&sl);
     printf(GREEN "PASSED\n" RESET);
@@ -94,7 +94,7 @@ void test_skiplist_update_existing_key(void) {
 
     uint8_t *val = NULL;
     size_t *val_size = NULL;
-    assert(skiplist_get(sl, (const uint8_t *)"key", 3, &val, &val_size) == 0);
+    assert(skiplist_get(sl, (const uint8_t *)"key", 3, &val, &val_size, NULL) == 0);
     assert(*val_size == 3);
     assert(memcmp(val, "new", 3) == 0);
 
@@ -116,11 +116,11 @@ void test_skiplist_delete(void) {
 
     uint8_t *val = NULL;
     size_t *val_size = NULL;
-    assert(skiplist_get(sl, (const uint8_t *)"beta", 4, &val, &val_size) == -1);
+    assert(skiplist_get(sl, (const uint8_t *)"beta", 4, &val, &val_size, NULL) == -1);
 
     /* remaining keys still present */
-    assert(skiplist_get(sl, (const uint8_t *)"alpha", 5, &val, &val_size) == 0);
-    assert(skiplist_get(sl, (const uint8_t *)"gamma", 5, &val, &val_size) == 0);
+    assert(skiplist_get(sl, (const uint8_t *)"alpha", 5, &val, &val_size, NULL) == 0);
+    assert(skiplist_get(sl, (const uint8_t *)"gamma", 5, &val, &val_size, NULL) == 0);
 
     skiplist_clear(&sl);
     printf(GREEN "PASSED\n" RESET);
@@ -149,11 +149,11 @@ void test_skiplist_ttl_expired(void) {
     assert(skiplist_put(&sl,
                         (const uint8_t *)"key", 3,
                         (uint8_t *)"val", 3,
-                        expired) == 0);
+                        expired, 0) == 0);
 
     uint8_t *val = NULL;
     size_t *val_size = NULL;
-    assert(skiplist_get(sl, (const uint8_t *)"key", 3, &val, &val_size) == -1);
+    assert(skiplist_get(sl, (const uint8_t *)"key", 3, &val, &val_size, NULL) == -1);
 
     skiplist_clear(&sl);
     printf(GREEN "PASSED\n" RESET);
@@ -168,11 +168,11 @@ void test_skiplist_ttl_valid(void) {
     assert(skiplist_put(&sl,
                         (const uint8_t *)"key", 3,
                         (uint8_t *)"val", 3,
-                        future) == 0);
+                        future, 0) == 0);
 
     uint8_t *val = NULL;
     size_t *val_size = NULL;
-    assert(skiplist_get(sl, (const uint8_t *)"key", 3, &val, &val_size) == 0);
+    assert(skiplist_get(sl, (const uint8_t *)"key", 3, &val, &val_size, NULL) == 0);
     assert(memcmp(val, "val", 3) == 0);
 
     skiplist_clear(&sl);
@@ -198,7 +198,7 @@ void test_skiplist_multiple_keys(void) {
         size_t *val_size = NULL;
         assert(skiplist_get(sl,
                             (const uint8_t *)keys[i], strlen(keys[i]),
-                            &val, &val_size) == 0);
+                            &val, &val_size, NULL) == 0);
         assert(*val_size == strlen(vals[i]));
         assert(memcmp(val, vals[i], *val_size) == 0);
     }
@@ -224,7 +224,7 @@ void test_cursor_forward(void) {
     int i = 0;
     do {
         uint8_t *k, *v; size_t ks, vs;
-        assert(skiplist_cursor_get(cur, &k, &ks, &v, &vs) == 0);
+        assert(skiplist_cursor_get(cur, &k, &ks, &v, &vs, NULL) == 0);
         assert(ks == strlen(expected_keys[i]));
         assert(memcmp(k, expected_keys[i], ks) == 0);
         assert(vs == strlen(expected_vals[i]));
@@ -256,7 +256,7 @@ void test_cursor_backward(void) {
     int i = 0;
     do {
         uint8_t *k, *v; size_t ks, vs;
-        assert(skiplist_cursor_get(cur, &k, &ks, &v, &vs) == 0);
+        assert(skiplist_cursor_get(cur, &k, &ks, &v, &vs, NULL) == 0);
         assert(ks == strlen(expected_keys[i]));
         assert(memcmp(k, expected_keys[i], ks) == 0);
         i++;

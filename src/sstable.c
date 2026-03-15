@@ -59,7 +59,9 @@ int sstable_write(memtable_t* memtable, const char* path) {
     do {
         uint8_t* key; size_t key_size;
         uint8_t* value; size_t value_size;
-        if (skiplist_cursor_get(cursor, &key, &key_size, &value, &value_size) != 0) break;
+        uint8_t  node_flags;
+        if (skiplist_cursor_get(cursor, &key, &key_size, &value, &value_size,
+                                &node_flags) != 0) break;
 
         if (key_size > MAX_KEY_SIZE || value_size > MAX_VALUE_SIZE) goto err;
 
@@ -71,10 +73,11 @@ int sstable_write(memtable_t* memtable, const char* path) {
 
         uint32_t ks = (uint32_t)key_size;
         uint32_t vs = (uint32_t)value_size;
-        if (fwrite(&ks,    sizeof(uint32_t), 1, f) != 1) goto err;
-        if (fwrite(key,    1, key_size,         f) != key_size) goto err;
-        if (fwrite(&vs,    sizeof(uint32_t), 1, f) != 1) goto err;
-        if (fwrite(value,  1, value_size,       f) != value_size) goto err;
+        if (fwrite(&ks,         sizeof(uint32_t), 1,          f) != 1)          goto err;
+        if (fwrite(key,         1,                key_size,    f) != key_size)   goto err;
+        if (fwrite(&node_flags, sizeof(uint8_t),  1,          f) != 1)          goto err;
+        if (fwrite(&vs,         sizeof(uint32_t), 1,          f) != 1)          goto err;
+        if (vs > 0 && fwrite(value, 1, value_size, f) != value_size)            goto err;
 
         bloom_add(bf, (const char*)key);
         i++;
@@ -127,7 +130,7 @@ err:
 }
 
 int sstable_get(const char* path, const uint8_t* key, size_t key_size,
-                uint8_t** value, size_t* value_size) {
+                uint8_t** value, size_t* value_size, uint8_t* flags) {
     if (path == NULL || key == NULL) return -1;
 
     FILE* f = fopen(path, "rb");
@@ -180,19 +183,28 @@ int sstable_get(const char* path, const uint8_t* key, size_t key_size,
 
     if (found == -1) { fclose(f); return -1; }
 
-    /* seek to data entry, skip key, read value */
+    /* seek to data entry: key_size | key | flags(1B) | value_size | value */
     if (fseek(f, (long)data_offset, SEEK_SET) != 0) { fclose(f); return -1; }
     uint32_t stored_ks;
     if (fread(&stored_ks, sizeof(uint32_t), 1, f) != 1) { fclose(f); return -1; }
     if (fseek(f, stored_ks, SEEK_CUR) != 0) { fclose(f); return -1; }
+
+    uint8_t stored_flags;
+    if (fread(&stored_flags, sizeof(uint8_t), 1, f) != 1) { fclose(f); return -1; }
+
     uint32_t stored_vs;
     if (fread(&stored_vs, sizeof(uint32_t), 1, f) != 1) { fclose(f); return -1; }
 
-    *value = malloc(stored_vs);
-    if (!*value) { fclose(f); return -1; }
-    if (fread(*value, 1, stored_vs, f) != stored_vs) { free(*value); fclose(f); return -1; }
+    if (stored_vs > 0) {
+        *value = malloc(stored_vs);
+        if (!*value) { fclose(f); return -1; }
+        if (fread(*value, 1, stored_vs, f) != stored_vs) { free(*value); fclose(f); return -1; }
+    } else {
+        *value = NULL;
+    }
 
     *value_size = stored_vs;
+    if (flags) *flags = stored_flags;
     fclose(f);
     return 0;
 }

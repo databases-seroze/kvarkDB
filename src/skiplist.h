@@ -13,12 +13,16 @@ typedef struct {
     size_t span;
 } skiplist_level_t;
 
+/* flags bits for skiplist_node_t */
+#define SKIPLIST_FLAG_DELETED 0x01  /* node is a tombstone — key was deleted */
+
 typedef struct skiplist_node_t {
     uint8_t* key;
     size_t key_size;
     uint8_t* value;
     size_t value_size;
     time_t ttl;
+    uint8_t flags;
     skiplist_level_t* levels; // array of levels, length = node_level at creation
 } skiplist_node_t;
 
@@ -44,12 +48,14 @@ int skiplist_new(skiplist_t** skiplist, size_t max_levels, float probability);
 // free all nodes and the skiplist itself; sets *skiplist to NULL
 int skiplist_clear(skiplist_t** skiplist);
 
-// insert or update a key-value pair
-int skiplist_put(skiplist_t** skiplist, const uint8_t* key, size_t key_size, uint8_t* value, size_t value_size, time_t ttl);
+// insert or update a key-value pair; flags may be SKIPLIST_FLAG_DELETED for a tombstone
+// tombstones have value=NULL and value_size=0
+int skiplist_put(skiplist_t** skiplist, const uint8_t* key, size_t key_size, uint8_t* value, size_t value_size, time_t ttl, uint8_t flags);
 
 // look up a key; sets *value and *value_size on success
-// returns 0 on success, -1 if not found or expired
-int skiplist_get(skiplist_t* skiplist, const uint8_t* key, size_t key_size, uint8_t** value, size_t** value_size);
+// if flags is non-NULL it receives the node's flags (e.g. SKIPLIST_FLAG_DELETED)
+// returns 0 if found (including tombstones), -1 if not found or expired
+int skiplist_get(skiplist_t* skiplist, const uint8_t* key, size_t key_size, uint8_t** value, size_t** value_size, uint8_t* flags);
 
 // delete a key; pass value=NULL to skip value check
 int skiplist_delete(skiplist_t** skiplist, const uint8_t* key, size_t key_size, const uint8_t* value, size_t value_size);
@@ -66,8 +72,9 @@ int skiplist_cursor_next(skiplist_cursor_t* cursor);
 // move to the previous node; returns -1 when at the start
 int skiplist_cursor_prev(skiplist_cursor_t* cursor);
 
-// read the current node's key and value (pointers into the node, no copy)
-int skiplist_cursor_get(skiplist_cursor_t* cursor, uint8_t** key, size_t* key_size, uint8_t** value, size_t* value_size);
+// read the current node's key, value, and flags (pointers into the node, no copy)
+// flags may be NULL if the caller does not need it
+int skiplist_cursor_get(skiplist_cursor_t* cursor, uint8_t** key, size_t* key_size, uint8_t** value, size_t* value_size, uint8_t* flags);
 
 // free the cursor (does not free the skiplist)
 void skiplist_cursor_destroy(skiplist_cursor_t* cursor);
