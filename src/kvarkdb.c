@@ -4,7 +4,10 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <limits.h>
+
+/* maximum supported path length — avoids relying on KVARKDB_MAX_PATH which
+ * is optional on POSIX and varies across platforms (Linux 4096, macOS 1024) */
+#define KVARKDB_MAX_PATH 1024
 
 #define META_DIR "meta"
 #define DATA_DIR "data"
@@ -20,7 +23,7 @@ static int create_db_directories(const char* path) {
     errno = 0;
 
     // Create data directory
-    char data_path[PATH_MAX];
+    char data_path[KVARKDB_MAX_PATH];
     if (snprintf(data_path, sizeof(data_path), "%s/%s", path, DATA_DIR) >= sizeof(data_path)) {
         fprintf(stderr, "Data directory path too long\n");
         return -1;
@@ -33,7 +36,7 @@ static int create_db_directories(const char* path) {
     errno = 0;
 
     // Create meta directory
-    char meta_path[PATH_MAX];
+    char meta_path[KVARKDB_MAX_PATH];
     if (snprintf(meta_path, sizeof(meta_path), "%s/%s/%s", path, DATA_DIR, META_DIR) >= sizeof(meta_path)) {
         fprintf(stderr, "Meta directory path too long\n");
         return -1;
@@ -63,8 +66,8 @@ int kvarkdb_open(kvarkdb_t* db) {
     }
 
     // Load column families metadata
-    // at present you can only create paths of max size 1023 (last char is \0)
-    char cf_path[PATH_MAX];
+    // paths are limited to KVARKDB_MAX_PATH - 1 characters (last char is \0)
+    char cf_path[KVARKDB_MAX_PATH];
     if (snprintf(cf_path, sizeof(cf_path), "%s/%s/%s", db->config.db_path, DATA_DIR, COLUMN_FAMILIES_FILE) >= (int)sizeof(cf_path)) {
         fprintf(stderr, "Column families path too long\n");
         return -1;
