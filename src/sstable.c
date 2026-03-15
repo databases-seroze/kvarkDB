@@ -3,6 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+
+/* key and value sizes are stored as uint32_t on disk */
+#define MAX_KEY_SIZE   UINT32_MAX
+#define MAX_VALUE_SIZE UINT32_MAX
 
 #define BLOOM_BITS_PER_KEY 10
 #define BLOOM_NUM_HASHES   7
@@ -55,6 +60,8 @@ int sstable_write(memtable_t* memtable, const char* path) {
         uint8_t* key; size_t key_size;
         uint8_t* value; size_t value_size;
         if (skiplist_cursor_get(cursor, &key, &key_size, &value, &value_size) != 0) break;
+
+        if (key_size > MAX_KEY_SIZE || value_size > MAX_VALUE_SIZE) goto err;
 
         index[i].offset   = (uint64_t)ftell(f);
         index[i].key_size = (uint32_t)key_size;

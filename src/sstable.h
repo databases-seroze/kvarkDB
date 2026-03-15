@@ -5,6 +5,10 @@
 #include <stddef.h>
 #include "memtable.h"
 
+/* key and value sizes are serialized as uint32_t — hard limits */
+#define SSTABLE_MAX_KEY_SIZE   UINT32_MAX
+#define SSTABLE_MAX_VALUE_SIZE UINT32_MAX
+
 /*
  * SSTable file layout:
  *
