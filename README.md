@@ -39,6 +39,18 @@ cmake --build build
 ./build/*_tests
 ```
 
+## Further Reading
+
+[@dborchard](https://github.com/dborchard) has a great collection of educational database projects worth exploring:
+
+- [lsm-tree](https://github.com/dborchard/lsm-tree) — LSM Tree demo (directly relevant to kvarkDB's architecture)
+- [cometkv](https://github.com/dborchard/cometkv) — Comparing different memtable implementations
+- [tiny-txn](https://github.com/dborchard/tiny-txn) — Serializable Snapshot Isolation transactions
+- [isolation_levels](https://github.com/dborchard/isolation_levels) — Database isolation levels implemented in Go
+- [colexec-db](https://github.com/dborchard/colexec-db) — Educational vectorized execution engine
+- [tiny-db](https://github.com/dborchard/tiny-db) — Query engine + storage engine using Calcite and ANTLR
+- [awesome-dbdev](https://github.com/dborchard/awesome-dbdev) — Curated materials on database development
+
 ## Milestones
 
 - [x] Implement WAL
