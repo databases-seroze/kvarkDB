@@ -51,6 +51,10 @@ cmake --build build
 - [tiny-db](https://github.com/dborchard/tiny-db) — Query engine + storage engine using Calcite and ANTLR
 - [awesome-dbdev](https://github.com/dborchard/awesome-dbdev) — Curated materials on database development
 
+### Articles
+
+- [Transaction Isolation in Postgres, Explained](https://www.thenile.dev/blog/transaction-isolation-postgres) — Covers SQL92 isolation levels, MVCC, and real-world concurrency tradeoffs (relevant to kvarkDB's planned MVCC support)
+
 ## Milestones
 
 - [x] Implement WAL
