@@ -43,6 +43,8 @@ cmake --build build
 
 [@dborchard](https://github.com/dborchard) has a great collection of educational database projects worth exploring:
 
+- [mini-lsm](https://github.com/skyzh/mini-lsm) — Structured course for building an LSM-Tree storage engine in Rust (memtables, SSTables, WAL, compaction, MVCC)
+- [tidesdb](https://github.com/tidesdb/tidesdb) — The primary inspiration for kvarkDB
 - [lsm-tree](https://github.com/dborchard/lsm-tree) — LSM Tree demo (directly relevant to kvarkDB's architecture)
 - [cometkv](https://github.com/dborchard/cometkv) — Comparing different memtable implementations
 - [tiny-txn](https://github.com/dborchard/tiny-txn) — Serializable Snapshot Isolation transactions
