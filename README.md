@@ -53,6 +53,16 @@ cmake --build build
 - [tiny-db](https://github.com/dborchard/tiny-db) — Query engine + storage engine using Calcite and ANTLR
 - [awesome-dbdev](https://github.com/dborchard/awesome-dbdev) — Curated materials on database development
 
+### Research
+
+[Niv Dayan](https://www.nivdayan.net/) (University of Toronto) is a leading researcher on LSM-tree optimization. Notable papers:
+
+- **Monkey** (SIGMOD 2017) — Optimal bloom filter allocation across LSM levels
+- **Dostoevsky** (SIGMOD 2018) — Better space-time trade-offs via adaptive merging
+- **Chucky** (SIGMOD 2021) — Succinct cuckoo filter for LSM-trees
+- **Spooky** (VLDB 2022) — Correct compaction granularity for LSM-trees
+- **KV-Tandem** (2024) — Modular approach to high-speed LSM storage engines
+
 ### Articles
 
 - [Transaction Isolation in Postgres, Explained](https://www.thenile.dev/blog/transaction-isolation-postgres) — Covers SQL92 isolation levels, MVCC, and real-world concurrency tradeoffs (relevant to kvarkDB's planned MVCC support)
